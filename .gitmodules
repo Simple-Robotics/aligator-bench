@@ -1,3 +1,6 @@
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/jrl-umi3218/jrl-cmakemodules.git
+[submodule "third-party/altro"]
+	path = third-party/altro
+	url = git@github.com:bjack205/altro.git

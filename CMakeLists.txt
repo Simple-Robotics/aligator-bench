@@ -22,7 +22,7 @@ find_package(aligator REQUIRED)
 find_package(example-robot-data REQUIRED)
 find_package(benchmark REQUIRED)
 
-add_subdirectory(third-party/altro-cpp)
+add_subdirectory(third-party/altro)
 
 add_library(aligator-bench STATIC)
 target_include_directories(aligator-bench PUBLIC src)
