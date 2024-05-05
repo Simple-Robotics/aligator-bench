@@ -1,6 +1,7 @@
 find_package(benchmark REQUIRED)
 find_package(example-robot-data REQUIRED)
 
+# Add a benchmark.
 function(create_benchmark filename)
   get_filename_component(name ${filename} NAME_WE)
   add_executable(${name} ${filename})
