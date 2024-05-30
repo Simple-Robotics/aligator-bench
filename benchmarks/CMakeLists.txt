@@ -1,5 +1,4 @@
 find_package(benchmark REQUIRED)
-find_package(example-robot-data REQUIRED)
 
 # Add a benchmark.
 function(create_benchmark filename)
@@ -7,6 +6,8 @@ function(create_benchmark filename)
   add_executable(${name} ${filename})
   target_link_libraries(${name} PRIVATE ${PROJECT_NAME})
   target_link_libraries(${name} PRIVATE benchmark::benchmark)
+  target_link_libraries(${name} PRIVATE aligator_bench_robots)
 endfunction()
 
 create_benchmark(ur5.cpp)
+create_benchmark(pendulum.cpp)
