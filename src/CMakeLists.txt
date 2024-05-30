@@ -1,10 +1,12 @@
 find_package(pinocchio REQUIRED)
 find_package(aligator REQUIRED)
 
-add_library(aligator-bench STATIC)
-file(GLOB_RECURSE albench_SOURCES CONFIGURE_DEPENDS *.cpp)
-target_sources(aligator-bench PUBLIC ${albench_SOURCES})
+add_library(aligator_bench SHARED)
+file(GLOB albench_SOURCES CONFIGURE_DEPENDS *.cpp solvers/*.cpp)
+target_sources(aligator_bench PUBLIC ${albench_SOURCES})
 target_include_directories(
-  aligator-bench INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+  aligator_bench INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-target_link_libraries(aligator-bench PUBLIC aligator::aligator altro::altro)
+target_link_libraries(aligator_bench PUBLIC aligator::aligator altro::altro)
+
+add_subdirectory(robots)
