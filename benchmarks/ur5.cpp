@@ -7,8 +7,7 @@
 #include "aligator/modelling/dynamics/integrator-semi-euler.hpp"
 #include "aligator/modelling/dynamics/multibody-free-fwd.hpp"
 
-#include "robots/robot_spec.hpp"
-#include <pinocchio/parsers/urdf.hpp>
+#include "robots/robot_load.hpp"
 
 namespace alcontext = aligator::context;
 namespace pin = pinocchio;
@@ -36,13 +35,8 @@ auto createProblem() {
   const double dt = 1e-2;
   const size_t nsteps = 100;
 
-  robot_spec spec = loadRobotSpecFromToml("ur.toml", "ur5");
-
-  pin::Model model;
-  pin::GeometryModel collModel;
-  pin::urdf::buildModel(spec.urdfPath, model, true);
-  pin::urdf::buildGeom(model, spec.urdfPath, pin::GeometryType::COLLISION,
-                       collModel, PACKAGE_DIRS_BASE);
+  pin::Model model = aligator_bench::loadModelFromToml("ur.toml", "ur5");
+  std::cout << model << std::endl;
 
   Space state_space{model};
   const VectorXs x0 = state_space.neutral();

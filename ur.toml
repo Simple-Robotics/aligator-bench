@@ -16,4 +16,3 @@ urdf_filename = "ur5_joint_limited_robot.urdf"
 
 [ur3]
 urdf_filename = "ur3_robot.urdf"
-
