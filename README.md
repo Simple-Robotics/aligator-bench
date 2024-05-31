@@ -2,6 +2,8 @@
 
 This is a set of small benchmarks for the [aligator](https://github.com/Simple-Robotics/aligator) optimal control library.
 
+## Contents
+
 ## Building
 
 **Dependencies** Building this repo requires:
@@ -10,10 +12,15 @@ This is a set of small benchmarks for the [aligator](https://github.com/Simple-R
 - [gtest](https://github.com/google/googletest)
 - [benchmark](https://github.com/google/benchmark)
 
+These dependencies can easily be installed from conda/mamba:
+
+```bash
+mamba install -c conda-forge aligator gtest benchmark
+```
 
 The first step, as always, is to checkout the repository (recursively, as to get the submodules)
 
-```
+```bash
 git clone https://github.com/Simple-Robotics/aligator-bench --recursive
 ```
 
