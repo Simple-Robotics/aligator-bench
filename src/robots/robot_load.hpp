@@ -1,24 +1,19 @@
 #pragma once
 
-#include "robot_spec.hpp"
-
 #include <pinocchio/multibody/model.hpp>
 
 namespace aligator_bench {
+struct robot_spec;
 
 void loadModelFromSpec(const robot_spec &spec, pinocchio::Model &model);
 
-inline void loadModelFromToml(const std::string &tomlFile,
-                              const std::string &key, pinocchio::Model &model) {
-  robot_spec spec = loadRobotSpecFromToml(tomlFile, key);
-  loadModelFromSpec(spec, model);
-}
+void loadModelFromToml(const std::string &tomlFile, const std::string &key,
+                       pinocchio::Model &model);
 
 inline pinocchio::Model loadModelFromToml(const std::string &tomlFile,
                                           const std::string &key) {
   pinocchio::Model model;
-  robot_spec spec = loadRobotSpecFromToml(tomlFile, key);
-  loadModelFromSpec(spec, model);
+  loadModelFromToml(tomlFile, key, model);
   return model;
 }
 

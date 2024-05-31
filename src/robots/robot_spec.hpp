@@ -1,13 +1,10 @@
 #pragma once
 
-#include <filesystem>
 #include <string>
 
 namespace aligator_bench {
-namespace fs = std::filesystem;
 
-inline const std::string PACKAGE_DIRS_BASE =
-    fs::path(EXAMPLE_ROBOT_DATA_MODEL_DIR) / "../..";
+extern const std::string PACKAGE_DIRS_BASE;
 
 struct robot_spec {
   std::string urdfPath;

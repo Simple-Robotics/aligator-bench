@@ -1,7 +1,13 @@
 #include "robot_spec.hpp"
-#include <toml.hpp>
+#include <filesystem>
+#include <toml/get.hpp>
+#include <toml/parser.hpp>
 
 namespace aligator_bench {
+namespace fs = std::filesystem;
+
+const std::string PACKAGE_DIRS_BASE =
+    fs::path(EXAMPLE_ROBOT_DATA_MODEL_DIR) / "../..";
 
 robot_spec loadRobotSpecFromToml(const std::string &fname,
                                  const std::string &key) {
