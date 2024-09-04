@@ -7,4 +7,5 @@ srdf_filename = "anymal.srdf"
 path = "anymal_b_simple_description"
 
 [anymal_c]
+urdf_subpath = "urdf"
 path = "anymal_c_simple_description"
