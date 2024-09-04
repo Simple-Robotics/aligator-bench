@@ -1,5 +1,5 @@
 path = "double_pendulum_description"
-urdf_path = "urdf"
+urdf_subpath = "urdf"
 
 [double_pendulum]
 urdf_filename = "double_pendulum.urdf"
