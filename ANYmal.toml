@@ -1,4 +1,3 @@
-urdf_subpath = "urdf"
 free_flyer = true
 ref_posture = "standing"
 urdf_filename = "anymal.urdf"
