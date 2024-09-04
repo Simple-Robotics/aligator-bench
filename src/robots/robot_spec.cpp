@@ -1,7 +1,7 @@
 #include "robot_spec.hpp"
 #include <filesystem>
-#include <toml/get.hpp>
-#include <toml/parser.hpp>
+#include <toml11/find.hpp>
+#include <toml11/parser.hpp>
 
 namespace aligator_bench {
 namespace fs = std::filesystem;
