@@ -1,10 +1,12 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 
 namespace aligator_bench {
+namespace fs = std::filesystem;
 
-extern const std::string PACKAGE_DIRS_BASE;
+extern const fs::path PACKAGE_DIRS_BASE;
 
 struct robot_spec {
   std::string urdfPath;
@@ -13,6 +15,6 @@ struct robot_spec {
 };
 
 robot_spec loadRobotSpecFromToml(const std::string &fname,
-                                 const std::string &key);
+                                 const std::string &key, bool verbose = false);
 
 } // namespace aligator_bench

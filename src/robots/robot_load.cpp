@@ -12,14 +12,15 @@ buildModel<double, context::Options>(const std::string &filename, Model &model,
 
 namespace aligator_bench {
 
-void loadModelFromSpec(const robot_spec &spec, pinocchio::Model &model) {
-  pinocchio::urdf::buildModel(spec.urdfPath, model);
+void loadModelFromSpec(const robot_spec &spec, pinocchio::Model &model,
+                       bool verbose) {
+  pinocchio::urdf::buildModel(spec.urdfPath, model, verbose);
 }
 
 void loadModelFromToml(const std::string &tomlFile, const std::string &key,
-                       pinocchio::Model &model) {
-  robot_spec spec = loadRobotSpecFromToml(tomlFile, key);
-  loadModelFromSpec(spec, model);
+                       pinocchio::Model &model, bool verbose) {
+  robot_spec spec = loadRobotSpecFromToml(tomlFile, key, verbose);
+  loadModelFromSpec(spec, model, verbose);
 }
 
 } // namespace aligator_bench
