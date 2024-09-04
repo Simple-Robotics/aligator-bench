@@ -6,5 +6,5 @@ srdf_filename = "anymal.srdf"
 [anymal]
 path = "anymal_b_simple_description"
 
-[anymalc]
+[anymal_c]
 path = "anymal_c_simple_description"
