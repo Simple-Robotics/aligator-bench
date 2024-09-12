@@ -19,4 +19,12 @@ inline pinocchio::Model loadModelFromSpec(const robot_spec &spec,
 void loadModelFromToml(const std::string &tomlFile, const std::string &key,
                        pinocchio::Model &model, bool verbose = false);
 
+inline pinocchio::Model loadModelFromToml(const std::string &tomlFile,
+                                          const std::string &key,
+                                          bool verbose = false) {
+  pinocchio::Model model;
+  loadModelFromToml(tomlFile, key, model, verbose);
+  return model;
+}
+
 } // namespace aligator_bench
