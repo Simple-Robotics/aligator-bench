@@ -14,6 +14,12 @@ GTEST_TEST(LoadSpec, ANYmalB) {
   EXPECT_TRUE(fs::exists(spec.urdfPath));
 }
 
+GTEST_TEST(LoadSpec, ANYmalC) {
+  using namespace aligator_bench;
+  robot_spec spec = loadRobotSpecFromToml("ANYmal.toml", "anymal_c", true);
+  EXPECT_TRUE(fs::exists(spec.urdfPath));
+}
+
 GTEST_TEST(LoadTest, UR5) {
   pinocchio::Model model;
   aligator_bench::loadModelFromToml("ur.toml", "ur5", model);
