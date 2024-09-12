@@ -16,10 +16,14 @@ using VecMap = Eigen::Map<alcontext::VectorXs>;
 using ConstMatMap = Eigen::Map<const alcontext::MatrixXs>;
 using MatMap = Eigen::Map<alcontext::MatrixXs>;
 
-using altroCostTriplet = std::tuple<altro::CostFunction, altro::CostGradient, altro::CostHessian>;
-using altroExplicitDynamics = std::tuple<altro::ExplicitDynamicsFunction, altro::ExplicitDynamicsJacobian>;
+using altroCostTriplet =
+    std::tuple<altro::CostFunction, altro::CostGradient, altro::CostHessian>;
+using altroExplicitDynamics = std::tuple<altro::ExplicitDynamicsFunction,
+                                         altro::ExplicitDynamicsJacobian>;
 
 /// @brief Convert aligator cost function to altro
-auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost) -> altroCostTriplet;
+auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
+    -> altroCostTriplet;
 
-auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics) -> altroExplicitDynamics;
+auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics)
+    -> altroExplicitDynamics;
