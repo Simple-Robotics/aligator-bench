@@ -1,6 +1,6 @@
 #include "robot_spec.hpp"
 #include <filesystem>
-#include <iostream>
+#include <fmt/core.h>
 #include <optional>
 #include <toml11/conversion.hpp>
 #include <toml11/find.hpp>
@@ -11,8 +11,6 @@ namespace aligator_bench {
 template <typename T>
 auto sesecnoval_inplace(const std::optional<T> &v1, std::optional<T> &v2) {
   v2 = v1.has_value() ? v1 : v2;
-  std::cout << "joined values " << v1.value_or("none") << " and "
-            << v2.value_or("none") << std::endl;
 }
 
 template <typename V, typename U>
@@ -53,7 +51,9 @@ const fs::path PACKAGE_DIRS_BASE =
 
 robot_spec loadRobotSpecFromToml(const std::string &fname,
                                  const std::string &key, bool verbose) {
-  const toml::value data = toml::parse(fname);
+  const fs::path tomlPath = fs::path{ROBOT_TOML_DIR} / fname;
+  fmt::println("Loading robot spec from TOML file {:s}", tomlPath.c_str());
+  const toml::value data = toml::parse(tomlPath);
 
   const spec_impl_data parent = toml::get<spec_impl_data>(data);
   const spec_impl_data child = toml::find<spec_impl_data>(data, key);
@@ -80,11 +80,12 @@ robot_spec loadRobotSpecFromToml(const std::string &fname,
       c2.ref_posture.value_or("standing"), c2.free_flyer.value_or(false)};
 
   if (verbose) {
-    std::cout << "Loaded robot:\n";
-    std::cout << " > URDF file " << result.urdfPath << '\n';
-    std::cout << " > SRDF file " << result.srdfPath << std::endl;
+    fmt::println("Loaded robot:");
+    fmt::println(" > URDF file {:s}", result.urdfPath);
+    if (!result.srdfPath.empty())
+      fmt::println(" > SRDF file {:s}", result.srdfPath);
     if (result.floatingBase)
-      std::cout << "Robot has floating base." << std::endl;
+      fmt::println(" > Robot has floating base");
   }
   return result;
 }
