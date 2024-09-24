@@ -2,11 +2,10 @@
 
 auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     -> altroCostTriplet {
-  auto data = aliCost->createData();
 
   using altro::a_float;
-  altro::CostFunction f = [aliCost, data](const a_float *x_,
-                                          const a_float *u_) -> a_float {
+  altro::CostFunction f = [aliCost, data = aliCost->createData()](
+                              const a_float *x_, const a_float *u_) -> a_float {
     const auto nx = aliCost->nx();
     const auto nu = aliCost->nu;
     ConstVecMap x{x_, nx};
@@ -14,9 +13,9 @@ auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     aliCost->evaluate(x, u, *data);
     return data->value_;
   };
-  altro::CostGradient gf = [aliCost, data](a_float *dx_, a_float *du_,
-                                           const a_float *x_,
-                                           const a_float *u_) {
+  altro::CostGradient gf = [aliCost, data = aliCost->createData()](
+                               a_float *dx_, a_float *du_, const a_float *x_,
+                               const a_float *u_) {
     const auto nx = aliCost->nx();
     const auto nu = aliCost->nu;
     VecMap dx{dx_, nx};
@@ -27,9 +26,9 @@ auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     dx = data->Lx_;
     du = data->Lu_;
   };
-  altro::CostHessian Hf = [aliCost, data](a_float *ddx_, a_float *ddu_,
-                                          a_float *dxdu_, const a_float *x_,
-                                          const a_float *u_) {
+  altro::CostHessian Hf = [aliCost, data = aliCost->createData()](
+                              a_float *ddx_, a_float *ddu_, a_float *dxdu_,
+                              const a_float *x_, const a_float *u_) {
     const auto nx = aliCost->nx();
     const auto nu = aliCost->nu;
     MatMap ddx{ddx_, nx, nx};

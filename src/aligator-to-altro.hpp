@@ -7,7 +7,6 @@
 namespace alcontext = aligator::context;
 using alcontext::CostAbstract;
 using alcontext::ExplicitDynamics;
-using xyz::polymorphic;
 
 /* Typedefs */
 
