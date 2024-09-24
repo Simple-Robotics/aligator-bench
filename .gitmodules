@@ -7,3 +7,6 @@
 [submodule "third-party/toml11"]
 	path = third-party/toml11
 	url = git@github.com:ToruNiina/toml11.git
+[submodule "third-party/matplotplusplus"]
+	path = third-party/matplotplusplus
+	url = https://github.com/alandefreitas/matplotplusplus/
