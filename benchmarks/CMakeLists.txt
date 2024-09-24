@@ -7,6 +7,7 @@ function(create_benchmark filename)
   target_link_libraries(${name} PRIVATE ${PROJECT_NAME})
   target_link_libraries(${name} PRIVATE benchmark::benchmark)
   target_link_libraries(${name} PRIVATE aligator_bench_robots)
+  target_link_libraries(${name} PRIVATE Matplot++::matplot)
 endfunction()
 
 create_benchmark(ur5.cpp)

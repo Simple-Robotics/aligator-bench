@@ -1,7 +1,7 @@
 #pragma once
 
-#include <aligator/core/cost-abstract.hpp>
-#include <aligator/core/explicit-dynamics.hpp>
+#include <aligator/context.hpp>
+#include <proxsuite-nlp/third-party/polymorphic_cxx14.hpp>
 #include <altro/solver/typedefs.hpp>
 
 namespace alcontext = aligator::context;

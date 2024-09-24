@@ -1,4 +1,6 @@
 #include "aligator-to-altro.hpp"
+#include <aligator/core/cost-abstract.hpp>
+#include <aligator/core/explicit-dynamics.hpp>
 
 auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     -> altroCostTriplet {
