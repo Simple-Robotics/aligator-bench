@@ -5,9 +5,10 @@
 auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     -> altroCostTriplet {
 
+  const auto data = aliCost->createData();
   using altro::a_float;
-  altro::CostFunction f = [aliCost, data = aliCost->createData()](
-                              const a_float *x_, const a_float *u_) -> a_float {
+  altro::CostFunction f = [aliCost, data](const a_float *x_,
+                                          const a_float *u_) -> a_float {
     const auto nx = aliCost->nx();
     const auto nu = aliCost->nu;
     ConstVecMap x{x_, nx};
@@ -15,22 +16,23 @@ auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     aliCost->evaluate(x, u, *data);
     return data->value_;
   };
-  altro::CostGradient gf = [aliCost, data = aliCost->createData()](
-                               a_float *dx_, a_float *du_, const a_float *x_,
-                               const a_float *u_) {
+  altro::CostGradient gf = [aliCost, data](a_float *dx_, a_float *du_,
+                                           const a_float *x_,
+                                           const a_float *u_) {
     const auto nx = aliCost->nx();
     const auto nu = aliCost->nu;
     VecMap dx{dx_, nx};
     VecMap du{du_, nu};
     ConstVecMap x{x_, nx};
     ConstVecMap u{u_, nu};
+    aliCost->evaluate(x, u, *data);
     aliCost->computeGradients(x, u, *data);
     dx = data->Lx_;
     du = data->Lu_;
   };
-  altro::CostHessian Hf = [aliCost, data = aliCost->createData()](
-                              a_float *ddx_, a_float *ddu_, a_float *dxdu_,
-                              const a_float *x_, const a_float *u_) {
+  altro::CostHessian Hf = [aliCost, data](a_float *ddx_, a_float *ddu_,
+                                          a_float *dxdu_, const a_float *x_,
+                                          const a_float *u_) {
     const auto nx = aliCost->nx();
     const auto nu = aliCost->nu;
     MatMap ddx{ddx_, nx, nx};
@@ -38,6 +40,8 @@ auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     MatMap dxdu{dxdu_, nx, nu};
     ConstVecMap x{x_, nx};
     ConstVecMap u{u_, nu};
+    aliCost->evaluate(x, u, *data);
+    aliCost->computeGradients(x, u, *data);
     aliCost->computeHessians(x, u, *data);
     ddx = data->Lxx_;
     ddu = data->Luu_;
@@ -71,6 +75,7 @@ auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics)
         MatMap J{J_, nx2, nx1 + nu};
         ConstVecMap x{x_, nx1};
         ConstVecMap u{u_, nu};
+        dynamics->forward(x, u, *data);
         dynamics->dForward(x, u, *data);
         J.leftCols(nx1) = data->Jx_;
         J.rightCols(nu) = data->Ju_;
