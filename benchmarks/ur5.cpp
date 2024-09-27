@@ -8,57 +8,36 @@
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 
 #include "aligator-to-altro.hpp"
+#include "util.hpp"
 #include "robots/robot_load.hpp"
 
 #include <altro/altro.hpp>
 #include <matplot/matplot.h>
 
 namespace pin = pinocchio;
+using alcontext::CostAbstract;
 using alcontext::MatrixXs;
 using alcontext::StageModel;
 using alcontext::TrajOptProblem;
 using alcontext::VectorXs;
+using PolyCost = xyz::polymorphic<CostAbstract>;
 
 using MultibodyFreeFwd =
     aligator::dynamics::MultibodyFreeFwdDynamicsTpl<double>;
 using Space = proxsuite::nlp::MultibodyPhaseSpace<double>;
 using aligator::dynamics::IntegratorSemiImplEulerTpl;
 
-auto createCost(Space space, double dt) {
-  const pin::Model &model = space.getModel();
-  const auto nu = model.nv;
-  const auto ndx = space.ndx();
-  aligator::CostStackTpl<double> costs{space, nu};
-
-  MatrixXs Wx{ndx, ndx};
-  Wx.setIdentity();
-
-  MatrixXs Wu{nu, nu};
-  Wu.setIdentity();
-
-  costs.addCost("quad", aligator::QuadraticCostTpl<double>{Wx, Wu}, 1e-2 * dt);
-  return costs;
-}
+aligator::CostStackTpl<double> createCost(Space space, double dt);
 
 auto createTerminalCost(Space space, Eigen::Vector3d xf) {
 
-  const auto fid = space.getModel().getFrameId("tool0");
+  const auto frame_id = space.getModel().getFrameId("tool0");
   const auto &model = space.getModel();
   const auto nu = model.nv;
   aligator::FrameTranslationResidualTpl<double> res{space.ndx(), nu, model, xf,
-                                                    fid};
-  Eigen::Matrix3d wr;
-  wr.setIdentity();
+                                                    frame_id};
+  Eigen::Matrix3d wr = Eigen::Matrix3d::Identity();
   return aligator::QuadraticResidualCostTpl<double>{space, std::move(res), wr};
-}
-
-auto traj_coordinate(std::span<VectorXs> states, long i) {
-  std::vector<double> out;
-  for (const auto &x : states) {
-    assert(i < x.size());
-    out.push_back(x[i]);
-  }
-  return out;
 }
 
 int main() {
@@ -165,4 +144,20 @@ int main() {
   }
 
   return 0;
+}
+
+aligator::CostStackTpl<double> createCost(Space space, double dt) {
+  const pin::Model &model = space.getModel();
+  const auto nu = model.nv;
+  const auto ndx = space.ndx();
+  aligator::CostStackTpl<double> costs{space, nu};
+
+  MatrixXs Wx{ndx, ndx};
+  Wx.setIdentity();
+
+  MatrixXs Wu{nu, nu};
+  Wu.setIdentity();
+
+  costs.addCost("quad", aligator::QuadraticCostTpl<double>{Wx, Wu}, 1e-2 * dt);
+  return costs;
 }
