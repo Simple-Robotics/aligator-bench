@@ -118,9 +118,15 @@ aligatorConstraintToAltro(int nx, alcontext::StageConstraint constraint) {
   altro::ConstraintJacobian Jc = [nx, f = constraint.func,
                                   data](a_float *jac_, const a_float *x_,
                                         const a_float *u_) {
-    VecMap jac{jac_, f->nr, f->ndx1 + f->nu};
+    const auto ndx = f->ndx1;
+    const auto nu = f->nu;
+    MatMap jac{jac_, f->nr, ndx + nu};
     ConstVecMap x{x_, nx};
-    ConstVecMap u{u_, f->nu};
+    ConstVecMap u{u_, nu};
+    f->evaluate(x, u, x, *data);
+    f->computeJacobians(x, u, x, *data);
+    jac.leftCols(ndx) = data->Jx_;
+    jac.rightCols(nu) = data->Ju_;
   };
   altro::ConstraintType ct = aligatorConstraintAltroType(*constraint.set);
   return {c, Jc, ct};

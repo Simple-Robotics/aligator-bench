@@ -36,4 +36,4 @@ altro::ConstraintType
 aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint);
 
 altroConstraint
-aligatorConstraintToAltro(alcontext::StageConstraint constraint);
+aligatorConstraintToAltro(int nx, alcontext::StageConstraint constraint);
