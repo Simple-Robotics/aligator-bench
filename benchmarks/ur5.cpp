@@ -1,11 +1,13 @@
 #include <aligator/core/traj-opt-problem.hpp>
 #include <aligator/modelling/costs/quad-costs.hpp>
 #include <aligator/modelling/costs/quad-residual-cost.hpp>
+#include <aligator/modelling/costs/quad-state-cost.hpp>
 #include <aligator/modelling/costs/sum-of-costs.hpp>
 #include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
 #include <aligator/modelling/dynamics/multibody-free-fwd.hpp>
 #include <aligator/modelling/multibody/frame-translation.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
+#include <proxsuite-nlp/modelling/constraints.hpp>
 
 #include "aligator-to-altro.hpp"
 #include "util.hpp"
@@ -21,23 +23,41 @@ using alcontext::StageModel;
 using alcontext::TrajOptProblem;
 using alcontext::VectorXs;
 using PolyCost = xyz::polymorphic<CostAbstract>;
+using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
 
 using MultibodyFreeFwd =
     aligator::dynamics::MultibodyFreeFwdDynamicsTpl<double>;
 using Space = proxsuite::nlp::MultibodyPhaseSpace<double>;
 using aligator::dynamics::IntegratorSemiImplEulerTpl;
 
-aligator::CostStackTpl<double> createCost(Space space, double dt);
+aligator::CostStackTpl<double> createUr5Cost(Space space, double dt);
 
-auto createTerminalCost(Space space, Eigen::Vector3d xf) {
-
+auto createUr5EeResidual(Space space, Eigen::Vector3d ee_pos) {
+  using aligator::FrameTranslationResidualTpl;
   const auto frame_id = space.getModel().getFrameId("tool0");
   const auto &model = space.getModel();
+  const auto ndx = space.ndx();
   const auto nu = model.nv;
-  aligator::FrameTranslationResidualTpl<double> res{space.ndx(), nu, model, xf,
-                                                    frame_id};
+  return FrameTranslationResidualTpl<double>{ndx, nu, model, ee_pos, frame_id};
+}
+
+auto createTerminalCost(Space space, Eigen::Vector3d ee_pos) {
+  auto res = createUr5EeResidual(space, ee_pos);
   Eigen::Matrix3d wr = Eigen::Matrix3d::Identity();
   return aligator::QuadraticResidualCostTpl<double>{space, std::move(res), wr};
+}
+
+auto createRegTerminalCost(Space space) {
+  auto x0 = space.neutral();
+  const auto ndx = space.ndx();
+  const auto nu = space.getModel().nv;
+  MatrixXs wr = 1e-3 * MatrixXs::Identity(ndx, ndx);
+  return aligator::QuadraticStateCostTpl<double>{space, nu, x0, wr};
+}
+
+auto createUr5TerminalConstraint(Space space, Eigen::Vector3d ee_pos) {
+  auto func = createUr5EeResidual(space, ee_pos);
+  return alcontext::StageConstraint{func, ZeroSet{}};
 }
 
 int main() {
@@ -49,27 +69,38 @@ int main() {
   pin::Model model = aligator_bench::loadModelFromToml("ur.toml", "ur5");
   std::cout << model << std::endl;
 
-  const Space state_space{model};
-  VectorXs x0 = state_space.neutral();
+  const Space space{model};
+  VectorXs x0 = space.neutral();
   x0.head<3>() << 0.1, -0.64, 1.38;
 
-  const IntegratorSemiImplEulerTpl<double> dynamics{
-      MultibodyFreeFwd{state_space}, dt};
-  const auto rcost = createCost(state_space, dt);
+  const IntegratorSemiImplEulerTpl<double> dynamics{MultibodyFreeFwd{space},
+                                                    dt};
+  const auto rcost = createUr5Cost(space, dt);
 
-  Eigen::Vector3d xf{0.5, 0.5, 0.1};
-  const auto term_cost = createTerminalCost(state_space, xf);
+  Eigen::Vector3d ee_term_pos{0.5, 0.5, 0.1};
+  bool use_term_cstr = true;
+  const PolyCost term_cost = use_term_cstr
+                                 ? createRegTerminalCost(space)
+                                 : createTerminalCost(space, ee_term_pos);
 
   StageModel stage{rcost, dynamics};
 
   std::vector<xyz::polymorphic<StageModel>> stages{nsteps, stage};
   TrajOptProblem problem{x0, stages, term_cost};
 
+  std::optional<alcontext::StageConstraint> term_constraint;
+  if (use_term_cstr) {
+    term_constraint = createUr5TerminalConstraint(space, ee_term_pos);
+    problem.addTerminalConstraint(*term_constraint);
+    fmt::println("Adding a terminal constraint");
+  }
+
   const double mu_init = 1e-10;
-  const double tol = 1e-3;
+  const double tol = 1e-4;
   alcontext::SolverProxDDP solver{tol, mu_init};
   solver.verbose_ = aligator::VERBOSE;
   solver.linear_solver_choice = aligator::LQSolverChoice::SERIAL;
+  solver.ls_params.armijo_c1 = 1e-2;
 
   solver.setup(problem);
   solver.run(problem);
@@ -110,6 +141,12 @@ int main() {
     solver.SetCostFunction(c, gc, Hc);
     solver.SetCostFunction(tc, gtc, Htc, 10);
     solver.SetExplicitDynamics(dyn, Jdyn);
+    if (use_term_cstr) {
+      auto [cstr_func, cstr_jac, cstype] =
+          aligatorConstraintToAltro(space.nx(), *term_constraint);
+      auto nr = term_constraint->func->nr;
+      solver.SetConstraint(cstr_func, cstr_jac, nr, cstype, "ee", nsteps);
+    }
     solver.SetInitialState(x0.data(), nx);
     ErrorCodes err = solver.Initialize();
     if (err != ErrorCodes::NoError) {
@@ -146,7 +183,7 @@ int main() {
   return 0;
 }
 
-aligator::CostStackTpl<double> createCost(Space space, double dt) {
+aligator::CostStackTpl<double> createUr5Cost(Space space, double dt) {
   const pin::Model &model = space.getModel();
   const auto nu = model.nv;
   const auto ndx = space.ndx();
