@@ -17,8 +17,13 @@ using MatMap = Eigen::Map<alcontext::MatrixXs>;
 
 using altroCostTriplet =
     std::tuple<altro::CostFunction, altro::CostGradient, altro::CostHessian>;
+
 using altroExplicitDynamics = std::tuple<altro::ExplicitDynamicsFunction,
                                          altro::ExplicitDynamicsJacobian>;
+
+using altroConstraint =
+    std::tuple<altro::ConstraintFunction, altro::ConstraintFunction,
+               altro::ConstraintType>;
 
 /// @brief Convert aligator cost function to altro
 auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
@@ -26,3 +31,9 @@ auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
 
 auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics)
     -> altroExplicitDynamics;
+
+altro::ConstraintType
+aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint);
+
+altroConstraint
+aligatorConstraintToAltro(alcontext::StageConstraint constraint);

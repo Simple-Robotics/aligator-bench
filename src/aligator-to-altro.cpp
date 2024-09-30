@@ -1,6 +1,10 @@
 #include "aligator-to-altro.hpp"
 #include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/explicit-dynamics.hpp>
+#include <aligator/core/constraint.hpp>
+#include <proxsuite-nlp/modelling/constraints.hpp>
+
+#include <boost/unordered_map.hpp>
 
 auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
     -> altroCostTriplet {
@@ -81,4 +85,43 @@ auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics)
         J.rightCols(nu) = data->Ju_;
       };
   return std::tuple{f, Jf};
+}
+
+using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
+using NegativeOrthant = proxsuite::nlp::NegativeOrthantTpl<double>;
+
+boost::unordered_map<const std::type_info *, altro::ConstraintType>
+    __aligatorConstraintRttiToAltro = {
+        {&typeid(ZeroSet), altro::ConstraintType::EQUALITY},
+        {&typeid(NegativeOrthant), altro::ConstraintType::INEQUALITY}};
+
+// Return Rtti
+altro::ConstraintType
+aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint) {
+  return __aligatorConstraintRttiToAltro.at(&typeid(constraint));
+}
+
+altroConstraint
+aligatorConstraintToAltro(int nx, alcontext::StageConstraint constraint) {
+  using altro::a_float;
+  auto data = constraint.func->createData();
+  altro::ConstraintFunction c = [nx, f = constraint.func,
+                                 data](a_float *val, const a_float *x_,
+                                       const a_float *u_) {
+    VecMap value{val, f->nr};
+    ConstVecMap x{x_, nx};
+    ConstVecMap u{u_, f->nu};
+
+    f->evaluate(x, u, x, *data);
+    value = data->value_;
+  };
+  altro::ConstraintJacobian Jc = [nx, f = constraint.func,
+                                  data](a_float *jac_, const a_float *x_,
+                                        const a_float *u_) {
+    VecMap jac{jac_, f->nr, f->ndx1 + f->nu};
+    ConstVecMap x{x_, nx};
+    ConstVecMap u{u_, f->nu};
+  };
+  altro::ConstraintType ct = aligatorConstraintAltroType(*constraint.set);
+  return {c, Jc, ct};
 }

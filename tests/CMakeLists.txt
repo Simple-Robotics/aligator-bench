@@ -14,3 +14,4 @@ function(create_test filename)
 endfunction()
 
 create_test(test_loader.cpp)
+create_test(test_aligator_to_altro.cpp)
