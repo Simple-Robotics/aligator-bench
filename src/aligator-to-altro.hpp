@@ -26,11 +26,10 @@ using altroConstraint =
                altro::ConstraintType>;
 
 /// @brief Convert aligator cost function to altro
-auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
-    -> altroCostTriplet;
+altroCostTriplet aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost);
 
-auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics)
-    -> altroExplicitDynamics;
+altroExplicitDynamics
+aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics);
 
 altro::ConstraintType
 aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint);

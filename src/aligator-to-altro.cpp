@@ -6,8 +6,7 @@
 
 #include <boost/unordered_map.hpp>
 
-auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
-    -> altroCostTriplet {
+altroCostTriplet aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost) {
 
   const auto data = aliCost->createData();
   using altro::a_float;
@@ -54,8 +53,8 @@ auto aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost)
   return {f, gf, Hf};
 }
 
-auto aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics)
-    -> altroExplicitDynamics {
+altroExplicitDynamics
+aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics) {
   auto data = std::static_pointer_cast<alcontext::ExplicitDynamicsData>(
       dynamics->createData());
 
