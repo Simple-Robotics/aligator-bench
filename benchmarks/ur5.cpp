@@ -5,9 +5,8 @@
 #include <aligator/modelling/costs/sum-of-costs.hpp>
 #include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
 #include <aligator/modelling/dynamics/multibody-free-fwd.hpp>
-#include <aligator/modelling/multibody/frame-translation.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
-#include <proxsuite-nlp/modelling/constraints.hpp>
+#include <aligator/utils/rollout.hpp>
 
 #include "aligator-to-altro-types.hpp"
 #include "util.hpp"
@@ -32,14 +31,8 @@ using aligator::dynamics::IntegratorSemiImplEulerTpl;
 
 aligator::CostStackTpl<double> createUr5Cost(Space space, double dt);
 
-auto createUr5EeResidual(Space space, Eigen::Vector3d ee_pos) {
-  using aligator::FrameTranslationResidualTpl;
-  const auto frame_id = space.getModel().getFrameId("tool0");
-  const auto &model = space.getModel();
-  const auto ndx = space.ndx();
-  const auto nu = model.nv;
-  return FrameTranslationResidualTpl<double>{ndx, nu, model, ee_pos, frame_id};
-}
+xyz::polymorphic<alcontext::StageFunction>
+createUr5EeResidual(Space space, Eigen::Vector3d ee_pos);
 
 auto createTerminalCost(Space space, Eigen::Vector3d ee_pos) {
   auto res = createUr5EeResidual(space, ee_pos);
@@ -55,14 +48,13 @@ auto createRegTerminalCost(Space space) {
   return aligator::QuadraticStateCostTpl<double>{space, nu, x0, wr};
 }
 
-auto createUr5TerminalConstraint(Space space, Eigen::Vector3d ee_pos) {
-  auto func = createUr5EeResidual(space, ee_pos);
-  return alcontext::StageConstraint{func, ZeroSet{}};
-}
+alcontext::StageConstraint createUr5TerminalConstraint(Space space,
+                                                       Eigen::Vector3d ee_pos);
 
 int main() {
   const double dt = 5e-2;
-  const size_t nsteps = 10;
+  const size_t nsteps = 120;
+  const size_t max_iters = 400;
   const double tf = nsteps * dt;
   const std::vector<double> times = matplot::linspace(0, tf, nsteps + 1);
 
@@ -84,6 +76,10 @@ int main() {
                                  : createTerminalCost(space, ee_term_pos);
 
   StageModel stage{rcost, dynamics};
+  std::vector<VectorXs> us_init;
+  for (size_t i = 0; i < nsteps; i++)
+    us_init.emplace_back(VectorXs::Zero(dynamics.nu));
+  std::vector<VectorXs> xs_init = aligator::rollout(dynamics, x0, us_init);
 
   std::vector<xyz::polymorphic<StageModel>> stages{nsteps, stage};
   TrajOptProblem problem{x0, stages, term_cost};
@@ -95,15 +91,17 @@ int main() {
     fmt::println("Adding a terminal constraint");
   }
 
-  const double mu_init = 1e-10;
-  const double tol = 1e-4;
+  const double mu_init = 1e-3;
+  const double tol = 1e-6;
   alcontext::SolverProxDDP solver{tol, mu_init};
+  solver.max_iters = max_iters;
   solver.verbose_ = aligator::VERBOSE;
   solver.linear_solver_choice = aligator::LQSolverChoice::SERIAL;
-  solver.ls_params.armijo_c1 = 1e-2;
+  solver.bcl_params.dyn_al_scale = 1e-12;
+  solver.reg_min = 1e-10;
 
   solver.setup(problem);
-  solver.run(problem);
+  solver.run(problem, xs_init, us_init);
   fmt::println("{}", solver.results_);
 
   {
@@ -128,6 +126,8 @@ int main() {
     opts.tol_cost = 1e-16;
     opts.tol_primal_feasibility = tol;
     opts.tol_stationarity = tol;
+    opts.penalty_initial = mu_init;
+    opts.iterations_max = max_iters;
     opts.use_backtracking_linesearch = true;
     solver.SetOptions(opts);
     const int nx = stage.nx1();
@@ -139,7 +139,7 @@ int main() {
     solver.SetDimension(nx, nu);
     solver.SetTimeStep(1.0);
     solver.SetCostFunction(c, gc, Hc);
-    solver.SetCostFunction(tc, gtc, Htc, 10);
+    solver.SetCostFunction(tc, gtc, Htc, nsteps);
     solver.SetExplicitDynamics(dyn, Jdyn);
     if (use_term_cstr) {
       auto [cstr_func, cstr_jac, cstype] =
@@ -157,7 +157,7 @@ int main() {
 
     SolveStatus status = solver.Solve();
     if (status != SolveStatus::Success) {
-      throw std::runtime_error("Altro failed to solve problem.");
+      fmt::println("Altro failed to solve problem.");
     } else {
       fmt::println("Altro successfully converged.");
     }
@@ -189,12 +189,14 @@ aligator::CostStackTpl<double> createUr5Cost(Space space, double dt) {
   const auto ndx = space.ndx();
   aligator::CostStackTpl<double> costs{space, nu};
 
-  MatrixXs Wx{ndx, ndx};
-  Wx.setIdentity();
+  MatrixXs Wx;
+  Wx.setIdentity(ndx, ndx);
+  Wx *= 0.1;
 
   MatrixXs Wu{nu, nu};
   Wu.setIdentity();
+  Wu *= 0.1;
 
-  costs.addCost("quad", aligator::QuadraticCostTpl<double>{Wx, Wu}, 1e-2 * dt);
+  costs.addCost("quad", aligator::QuadraticCostTpl<double>{Wx, Wu}, dt);
   return costs;
 }
