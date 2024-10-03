@@ -26,22 +26,59 @@ void exposeAltro() {
       .def(
           "GetState",
           +[](const ALTROSolver &self, int k) {
-            Eigen::VectorXd out{self.GetStateDim(k)};
-            self.GetState(out.data(), k);
-            return out;
+            Eigen::VectorXd x{self.GetStateDim(k)};
+            self.GetState(x.data(), k);
+            return x;
           })
       .def(
-          "GetInput", +[](const ALTROSolver &self, int k) {
-            Eigen::VectorXd out{self.GetInputDim(k)};
-            self.GetInput(out.data(), k);
-            return out;
-          });
+          "GetInput",
+          +[](const ALTROSolver &self, int k) {
+            Eigen::VectorXd u{self.GetInputDim(k)};
+            self.GetInput(u.data(), k);
+            return u;
+          })
+      .def("PrintStateTrajectory", &ALTROSolver::PrintStateTrajectory,
+           ("self"_a))
+      .def("PrintInputTrajectory", &ALTROSolver::PrintInputTrajectory,
+           ("self"_a));
 
-  bp::enum_<Verbosity>("AltroVerbosity")
-      .value("Silent", Verbosity::Silent)
-      .value("Outer", Verbosity::Outer)
-      .value("Inner", Verbosity::Inner)
-      .value("LineSearch", Verbosity::LineSearch);
+  bp::enum_<Verbosity>("Verbosity")
+#define _c(name) value(#name, Verbosity::name)
+      ._c(Silent)
+      ._c(Outer)
+      ._c(Inner)
+      ._c(LineSearch);
+#undef _c
+
+  bp::enum_<ErrorCodes>("ErrorCodes")
+#define _c(name) value(#name, ErrorCodes::name)
+      ._c(NoError)
+      ._c(StateDimUnknown)
+      ._c(InputDimUnknown)
+      ._c(NextStateDimUnknown)
+      ._c(DimensionUnknown)
+      ._c(BadIndex)
+      ._c(DimensionMismatch)
+      ._c(SolverNotInitialized)
+      ._c(SolverAlreadyInitialized)
+      ._c(NonPositive)
+      ._c(TimestepNotPositive)
+      ._c(CostFunNotSet)
+      ._c(DynamicsFunNotSet)
+      ._c(InvalidOptAtTerminalKnotPoint)
+      ._c(MaxConstraintsExceeded)
+      ._c(InvalidConstraintDim)
+      ._c(CholeskyFailed)
+      ._c(OpOnlyValidAtTerminalKnotPoint)
+      ._c(InvalidPointer)
+      ._c(BackwardPassFailed)
+      ._c(LineSearchFailed)
+      ._c(MeritFunctionGradientTooSmall)
+      ._c(InvalidBoundConstraint)
+      ._c(NonPositivePenalty)
+      ._c(CostNotQuadratic)
+      ._c(FileError);
+#undef _c
 
   bp::class_<AltroOptions>("AltroOptions", bp::init<>("self"_a))
 #define _c(name) def_readwrite(#name, &AltroOptions::name)
