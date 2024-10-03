@@ -10,3 +10,4 @@ target_include_directories(
 target_link_libraries(aligator_bench PUBLIC aligator::aligator altro::altro)
 
 add_subdirectory(robots)
+add_subdirectory(python)
