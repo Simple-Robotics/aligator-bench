@@ -5,11 +5,12 @@
 #include <aligator/core/explicit-dynamics.hpp>
 
 namespace aligator_bench {
-altro::ALTROSolver
-init_altro_from_aligator_problem(const alcontext::TrajOptProblem &problem) {
+altro::ALTROSolver *
+initAltroFromAligatorProblem(const alcontext::TrajOptProblem &problem) {
   auto horizon_length = (int)problem.numSteps();
   auto x0 = problem.getInitState();
-  altro::ALTROSolver solver{horizon_length};
+  auto *psolver = new altro::ALTROSolver{horizon_length};
+  altro::ALTROSolver &solver = *psolver;
   solver.SetInitialState(x0.data(), int(x0.size()));
 
   solver.SetTimeStep(1.0); // Aligator already handles the timestep
@@ -32,7 +33,7 @@ init_altro_from_aligator_problem(const alcontext::TrajOptProblem &problem) {
     solver.SetCostFunction(tc, gtc, Htc, horizon_length);
   }
 
-  return solver;
+  return psolver;
 }
 
 } // namespace aligator_bench

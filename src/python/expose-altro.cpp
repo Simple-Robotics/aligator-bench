@@ -4,7 +4,6 @@
 
 void exposeAltro() {
   using namespace altro;
-  bp::scope scope = aligator::python::get_namespace("altro_wrap");
 
   // Expose a limited API to ALTRO, just enough to set solver options,
   // initialize, and solve.
@@ -38,7 +37,7 @@ void exposeAltro() {
       .def("PrintInputTrajectory", &ALTROSolver::PrintInputTrajectory,
            ("self"_a));
 
-  bp::enum_<Verbosity>("Verbosity")
+  bp::enum_<Verbosity>("AltroVerbosity")
 #define _c(name) value(#name, Verbosity::name)
       ._c(Silent)
       ._c(Outer)

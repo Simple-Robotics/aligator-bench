@@ -6,6 +6,8 @@ using namespace aligator_bench;
 
 void exposeAligatorToAltro() {
   bp::import("aligator");
-  bp::def("init_altro_from_aligator_problem", init_altro_from_aligator_problem,
-          ("aligator_problem"_a));
+  bp::def("initAltroFromAligatorProblem", initAltroFromAligatorProblem,
+          ("aligator_problem"_a),
+          "Instantiate an Altro solver from an Aligator problem.",
+          bp::return_value_policy<bp::manage_new_object>());
 }
