@@ -9,7 +9,7 @@
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <proxsuite-nlp/modelling/constraints.hpp>
 
-#include "aligator-to-altro.hpp"
+#include "aligator-to-altro-types.hpp"
 #include "util.hpp"
 #include "robots/robot_load.hpp"
 

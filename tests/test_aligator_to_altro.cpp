@@ -1,4 +1,4 @@
-#include "aligator-to-altro.hpp"
+#include "aligator-to-altro-types.hpp"
 #include <gtest/gtest.h>
 
 #include <proxsuite-nlp/modelling/constraints.hpp>

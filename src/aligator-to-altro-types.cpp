@@ -1,4 +1,4 @@
-#include "aligator-to-altro.hpp"
+#include "aligator-to-altro-types.hpp"
 #include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/explicit-dynamics.hpp>
 #include <aligator/core/constraint.hpp>
