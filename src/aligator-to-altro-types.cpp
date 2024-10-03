@@ -54,7 +54,10 @@ altroCostTriplet aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost) {
 }
 
 altroExplicitDynamics
-aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics) {
+aligatorExpDynamicsToAltro(xyz::polymorphic<DynamicsModel> dynamics) {
+
+#define _cast_to_explicit(d) dynamic_cast<const ExplicitDynamics &>(*d)
+
   auto data = std::static_pointer_cast<alcontext::ExplicitDynamicsData>(
       dynamics->createData());
 
@@ -67,7 +70,7 @@ aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics) {
     ConstVecMap x{x_, nx1};
     ConstVecMap u{u_, nu};
     VecMap xnext{xnext_, nx2};
-    dynamics->forward(x, u, *data);
+    _cast_to_explicit(dynamics).forward(x, u, *data);
     xnext = data->xnext_;
   };
   altro::ExplicitDynamicsJacobian Jf =
@@ -78,12 +81,13 @@ aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics) {
         MatMap J{J_, nx2, nx1 + nu};
         ConstVecMap x{x_, nx1};
         ConstVecMap u{u_, nu};
-        dynamics->forward(x, u, *data);
-        dynamics->dForward(x, u, *data);
+        _cast_to_explicit(dynamics).forward(x, u, *data);
+        _cast_to_explicit(dynamics).dForward(x, u, *data);
         J.leftCols(nx1) = data->Jx_;
         J.rightCols(nu) = data->Ju_;
       };
   return std::tuple{f, Jf};
+#undef _cast_to_explicit
 }
 
 using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;

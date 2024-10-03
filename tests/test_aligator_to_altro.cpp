@@ -17,3 +17,5 @@ GTEST_TEST(aligatorToAltro, NegativeOrthant) {
   auto ct2 = aligatorConstraintAltroType(NO{});
   EXPECT_EQ(ct, ct2);
 }
+
+GTEST_TEST(aligatorToAltro, Problem) {}

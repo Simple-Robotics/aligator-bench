@@ -6,6 +6,7 @@
 
 namespace alcontext = aligator::context;
 using alcontext::CostAbstract;
+using alcontext::DynamicsModel;
 using alcontext::ExplicitDynamics;
 
 /* Typedefs */
@@ -29,7 +30,7 @@ using altroConstraint =
 altroCostTriplet aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost);
 
 altroExplicitDynamics
-aligatorExpDynamicsToAltro(xyz::polymorphic<ExplicitDynamics> dynamics);
+aligatorExpDynamicsToAltro(xyz::polymorphic<DynamicsModel> dynamics);
 
 altro::ConstraintType
 aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint);
