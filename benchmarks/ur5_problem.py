@@ -8,32 +8,35 @@ from aligator import constraints, manifolds
 
 
 class URProblem(object):
+    robot = erd.load("ur5")
     EE_NAME = "tool0"
 
-    def __init__(self, random_seed: int, vel_constraint=False, ee_target=None):
-        robot = erd.load("ur5")
-        rmodel: pin.Model = robot.model
+    def __init__(self, vel_constraint=False, ee_target=None):
+        rmodel: pin.Model = self.robot.model.copy()
 
-        # todo: change
         if ee_target is None:
-            q0 = pin.neutral(rmodel)
-            rdata = rmodel.createData()
-            _ee_id = rmodel.getFrameId(self.EE_NAME)
-            pin.framesForwardKinematics(rmodel, rdata, q0)
-            M_tool_q0: pin.SE3 = rdata.oMf[_ee_id]
-            ee_target = 0.9 * M_tool_q0.translation.copy()
+            ee_target = 0.98 * self.get_default_config_ee_pose(rmodel)
 
         self.problem, self.times = self._build_problem(
-            rmodel, random_seed, vel_constraint, ee_target, self.EE_NAME
+            rmodel, vel_constraint, ee_target, self.EE_NAME
         )
+        self._vel_constraint = vel_constraint
         self.rmodel = rmodel
 
     @staticmethod
-    def _build_problem(
-        rmodel: pin.Model, random_seed, vel_constraint, ee_target, ee_name: int
-    ):
-        pin.seed(random_seed)
-        np.random.seed(random_seed)
+    def get_default_config_ee_pose(rmodel: pin.Model):
+        q0 = pin.neutral(rmodel)
+        rdata = rmodel.createData()
+        ee_id = rmodel.getFrameId(URProblem.EE_NAME)
+        pin.framesForwardKinematics(rmodel, rdata, q0)
+        M_tool_q0: pin.SE3 = rdata.oMf[ee_id]
+        return M_tool_q0.translation.copy()
+
+    def name(self):
+        return "UR5 Reach"
+
+    @staticmethod
+    def _build_problem(rmodel: pin.Model, vel_constraint, ee_target, ee_name: int):
 
         nv = rmodel.nv
         nu = nv
@@ -42,14 +45,15 @@ class URProblem(object):
         ndx = space.ndx
 
         x0 = space.neutral()
+        xneut = space.neutral()
         dt = 0.01
 
         rcost = aligator.CostStack(space, nu)
         wx = 1e-4 * np.eye(ndx)
-        rcost.addCost(aligator.QuadraticStateCost(space, nu, x0, wx), dt)
+        rcost.addCost(aligator.QuadraticStateCost(space, nu, xneut, wx), dt)
         rcost.addCost(aligator.QuadraticControlCost(space, nu, 1e-3 * np.eye(nu)), dt)
         wx_term = 1e-8 * np.eye(ndx)
-        term_cost = aligator.QuadraticStateCost(space, nu, x0, wx_term)
+        term_cost = aligator.QuadraticStateCost(space, nu, xneut, wx_term)
 
         dyn = aligator.dynamics.IntegratorSemiImplEuler(
             aligator.dynamics.MultibodyFreeFwdDynamics(space), dt
@@ -89,7 +93,7 @@ class URProblem(object):
 if __name__ == "__main__":
     from .solver_runner import AltroRunner
 
-    ur_problem = URProblem(42)
+    ur_problem = URProblem()
     problem = ur_problem.problem
     rmodel = ur_problem.rmodel
     nq = rmodel.nq

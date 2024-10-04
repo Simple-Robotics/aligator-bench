@@ -1,14 +1,22 @@
 import aligator
 from aligator import SolverProxDDP, TrajOptProblem
+from enum import Enum, auto
+
+
+class Status(Enum):
+    CONVERGED = auto()
+    MAXITERATIONS = auto()
+    ERROR = auto()
 
 
 class Result:
-    def __init__(self, traj_cost, niter):
+    def __init__(self, status: Status, traj_cost, niter):
+        self.status = status
         self.traj_cost = traj_cost
         self.niter = niter
 
     def todict(self):
-        return {"traj_cost": self.traj_cost, "niter": self.niter}
+        return {"status": self.status, "traj_cost": self.traj_cost, "niter": self.niter}
 
     def __str__(self):
         return f"Result {self.todict()}"
@@ -25,13 +33,25 @@ class ProxDdpRunner:
         for param, value in self._settings.items():
             if param == "verbose" and value:
                 solver.verbose = aligator.VERBOSE
+            if param == "max_iters":
+                solver.max_iters = value
 
         bcl_params: solver.AlmParams = solver.bcl_params
         bcl_params.mu_lower_bound = self._settings.setdefault("mu_lower_bound", 1e-10)
         solver.setup(prob)
-        results: aligator.Results = solver.run(prob)
+        results: aligator.Results = solver.results
+        try:
+            conv = solver.run(prob)
+            if conv:
+                status = Status.CONVERGED
+            elif results.num_iters == solver.max_iters:
+                status = Status.MAXITERATIONS
+            else:
+                status = Status.ERROR
+        except Exception:
+            status = Status.ERROR
         self._solver = solver
-        return Result(results.traj_cost, results.num_iters)
+        return Result(status, results.traj_cost, results.num_iters)
 
     @property
     def solver(self):
@@ -46,6 +66,7 @@ class AltroRunner:
     def solve(self, example, tol: float):
         from aligator_bench_pywrap import (
             AltroVerbosity,
+            SolveStatus,
             ErrorCodes,
             initAltroFromAligatorProblem,
         )
@@ -65,11 +86,20 @@ class AltroRunner:
         for param, value in self._settings.items():
             if param == "verbose" and value:
                 altro_opts.verbose = AltroVerbosity.Inner
+            if param == "max_iters":
+                altro_opts.iterations_max = value
 
         solver_code = altro_solver.Solve()
+        match solver_code:
+            case SolveStatus.Success:
+                status = Status.CONVERGED
+            case SolveStatus.MaxIterations:
+                status = Status.MAXITERATIONS
+            case _:
+                status = Status.ERROR
         print("Solver code:", solver_code)
         self._solver = altro_solver
-        return Result(altro_solver.GetFinalObjective(), altro_solver.GetIterations())
+        return Result(status, altro_solver.CalcCost(), altro_solver.GetIterations())
 
     @property
     def solver(self):
