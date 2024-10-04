@@ -1,6 +1,5 @@
-import aligator_bench_pywrap
-
-from aligator import TrajOptProblem
+import aligator
+from aligator import SolverProxDDP, TrajOptProblem
 
 
 class Result:
@@ -8,13 +7,35 @@ class Result:
         self.traj_cost = traj_cost
         self.niter = niter
 
+    def todict(self):
+        return {"traj_cost": self.traj_cost, "niter": self.niter}
+
+    def __str__(self):
+        return f"Result {self.todict()}"
+
 
 class ProxDdpRunner:
     def __init__(self, settings={}):
         self._settings = settings
 
     def solve(self, example, tol: float):
-        p: TrajOptProblem = example.problem
+        prob: TrajOptProblem = example.problem
+        solver = SolverProxDDP(tol)
+        solver.mu_init = self._settings["mu_init"]  # required param
+        for param, value in self._settings.items():
+            if param == "verbose" and value:
+                solver.verbose = aligator.VERBOSE
+
+        bcl_params: solver.AlmParams = solver.bcl_params
+        bcl_params.mu_lower_bound = self._settings.setdefault("mu_lower_bound", 1e-10)
+        solver.setup(prob)
+        results: aligator.Results = solver.run(prob)
+        self._solver = solver
+        return Result(results.traj_cost, results.num_iters)
+
+    @property
+    def solver(self):
+        return self._solver
 
 
 class AltroRunner:

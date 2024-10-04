@@ -10,17 +10,18 @@ from aligator import constraints, manifolds
 class URProblem(object):
     EE_NAME = "tool0"
 
-    def __init__(self, random_seed: int, vel_constraint=False):
+    def __init__(self, random_seed: int, vel_constraint=False, ee_target=None):
         robot = erd.load("ur5")
         rmodel: pin.Model = robot.model
-        q0 = pin.neutral(rmodel)
-        rdata = rmodel.createData()
-        _ee_id = rmodel.getFrameId(self.EE_NAME)
-        pin.framesForwardKinematics(rmodel, rdata, q0)
 
         # todo: change
-        M_tool_q0: pin.SE3 = rdata.oMf[_ee_id]
-        ee_target = 0.9 * M_tool_q0.translation.copy()
+        if ee_target is None:
+            q0 = pin.neutral(rmodel)
+            rdata = rmodel.createData()
+            _ee_id = rmodel.getFrameId(self.EE_NAME)
+            pin.framesForwardKinematics(rmodel, rdata, q0)
+            M_tool_q0: pin.SE3 = rdata.oMf[_ee_id]
+            ee_target = 0.9 * M_tool_q0.translation.copy()
 
         self.problem, self.times = self._build_problem(
             rmodel, random_seed, vel_constraint, ee_target, self.EE_NAME
@@ -86,7 +87,6 @@ class URProblem(object):
 
 
 if __name__ == "__main__":
-    import aligator_bench_pywrap
     from .solver_runner import AltroRunner
 
     ur_problem = URProblem(42)
@@ -113,9 +113,8 @@ if __name__ == "__main__":
     us_ali = alisolver.results.us.tolist()
 
     runner = AltroRunner({"verbose": True})
-
-    runner.solve(ur_problem, TOL)
-
+    altro_res = runner.solve(ur_problem, TOL)
+    print(altro_res)
     altro_solve = runner.solver
 
     xs_altro = altro_solve.GetAllStates().tolist()
