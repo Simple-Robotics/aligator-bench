@@ -61,15 +61,12 @@ void exposeAltro() {
       .def("Solve", &ALTROSolver::Solve, ("self"_a))
       .def("GetState", &get_state_wrap, ("self"_a, "k"))
       .def("GetInput", &get_input_wrap, ("self"_a, "k"))
+      .def("GetAllStates", &altro_get_all_states, ("self"_a))
+      .def("GetAllInputs", &altro_get_all_inputs, ("self"_a))
       .def("PrintStateTrajectory", &ALTROSolver::PrintStateTrajectory,
            ("self"_a))
       .def("PrintInputTrajectory", &ALTROSolver::PrintInputTrajectory,
            ("self"_a));
-
-  bp::def("altroGetAllStates", &altro_get_all_states, ("solver"_a),
-          "Get all states from the solver.");
-  bp::def("altroGetAllInputs", &altro_get_all_inputs, ("solver"_a),
-          "Get all inputs from the solver.");
 
   bp::enum_<SolveStatus>("SolveStatus")
 #define _c(name) value(#name, SolveStatus::name)
