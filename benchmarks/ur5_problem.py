@@ -1,5 +1,4 @@
 import aligator
-import aligator_bench_pywrap
 import pinocchio as pin
 import example_robot_data as erd
 import numpy as np
@@ -9,38 +8,40 @@ from aligator import constraints, manifolds
 
 
 class URProblem(object):
+    EE_NAME = "tool0"
+
     def __init__(self, random_seed: int, vel_constraint=False):
         robot = erd.load("ur5")
-        self.rmodel: pin.Model = robot.model
-        self._problem, self.times = self._build_problem(
-            self.rmodel, random_seed, vel_constraint
+        rmodel: pin.Model = robot.model
+        q0 = pin.neutral(rmodel)
+        rdata = rmodel.createData()
+        _ee_id = rmodel.getFrameId(self.EE_NAME)
+        pin.framesForwardKinematics(rmodel, rdata, q0)
+
+        # todo: change
+        M_tool_q0: pin.SE3 = rdata.oMf[_ee_id]
+        ee_target = 0.9 * M_tool_q0.translation.copy()
+
+        self.problem, self.times = self._build_problem(
+            rmodel, random_seed, vel_constraint, ee_target, self.EE_NAME
         )
+        self.rmodel = rmodel
 
     @staticmethod
-    def _build_problem(rmodel: pin.Model, random_seed, vel_constraint):
+    def _build_problem(
+        rmodel: pin.Model, random_seed, vel_constraint, ee_target, ee_name: int
+    ):
         pin.seed(random_seed)
         np.random.seed(random_seed)
 
         nv = rmodel.nv
-        nq = rmodel.nq
         nu = nv
-
-        EE_NAME = "tool0"
 
         space = manifolds.MultibodyPhaseSpace(rmodel)
         ndx = space.ndx
 
         x0 = space.neutral()
         dt = 0.01
-
-        q0 = pin.neutral(rmodel)
-        rdata = rmodel.createData()
-        ee_id = rmodel.getFrameId(EE_NAME)
-        pin.forwardKinematics(rmodel, rdata, q0)
-        pin.updateFramePlacement(rmodel, rdata, ee_id)
-
-        M_tool_q0: pin.SE3 = rdata.oMf[ee_id]
-        print(M_tool_q0)
 
         rcost = aligator.CostStack(space, nu)
         wx = 1e-4 * np.eye(ndx)
@@ -56,6 +57,7 @@ class URProblem(object):
         tf = 1.0
         nsteps = int(tf / dt)
         times = np.linspace(0.0, tf, nsteps + 1)
+        ee_id = rmodel.getFrameId(ee_name)
 
         def createTermConstraint(pf: np.ndarray):
             fn = aligator.FrameTranslationResidual(
@@ -64,13 +66,12 @@ class URProblem(object):
             return aligator.StageConstraint(fn, constraints.EqualityConstraintSet())
 
         problem = aligator.TrajOptProblem(x0, nu, space, term_cost)
-        pf = 0.95 * M_tool_q0.translation
-        problem.addTerminalConstraint(createTermConstraint(pf))
+        problem.addTerminalConstraint(createTermConstraint(ee_target))
 
         for i in range(nsteps):
             stage = aligator.StageModel(rcost, dyn)
             if vel_constraint:
-                vmax = 10.0 * rmodel.velocityLimit
+                vmax = rmodel.velocityLimit
                 vmin = -vmax
                 _b = np.concatenate([-vmax, vmin])
                 _A = np.zeros((2 * nv, ndx))
@@ -83,12 +84,10 @@ class URProblem(object):
             problem.addStage(stage)
         return (problem, times)
 
-    @property
-    def problem(self) -> aligator.TrajOptProblem:
-        return self._problem
-
 
 if __name__ == "__main__":
+    import aligator_bench_pywrap
+    from .solver_runner import AltroRunner
 
     ur_problem = URProblem(42)
     problem = ur_problem.problem
@@ -102,8 +101,6 @@ if __name__ == "__main__":
     MAX_ITER = 400
     alisolver = aligator.SolverProxDDP(TOL, mu_init, verbose=aligator.VERBOSE)
     alisolver.max_iters = MAX_ITER
-    history_callback = aligator.HistoryCallback()
-    alisolver.registerCallback("his", history_callback)
     bcl_params: alisolver.AlmParams = alisolver.bcl_params
     bcl_params.mu_lower_bound = 1e-10
     alisolver.setup(problem)
@@ -115,19 +112,11 @@ if __name__ == "__main__":
     xs_ali = alisolver.results.xs.tolist()
     us_ali = alisolver.results.us.tolist()
 
-    altro_solve = aligator_bench_pywrap.initAltroFromAligatorProblem(problem)
-    altro_opts = altro_solve.GetOptions()
-    altro_opts.verbose = aligator_bench_pywrap.AltroVerbosity.Inner
-    altro_opts.tol_cost = 1e-16
-    altro_opts.tol_stationarity = TOL
-    altro_opts.penalty_initial = mu_init
-    altro_opts.iterations_max = MAX_ITER
-    altro_opts.use_backtracking_linesearch = True
-    altro_iter = altro_solve.GetIterations()
+    runner = AltroRunner({"verbose": True})
 
-    init_errcode = altro_solve.Initialize()
-    assert init_errcode == aligator_bench_pywrap.ErrorCodes.NoError
-    solve_code = altro_solve.Solve()
+    runner.solve(ur_problem, TOL)
+
+    altro_solve = runner.solver
 
     xs_altro = altro_solve.GetAllStates().tolist()
     us_altro = altro_solve.GetAllInputs().tolist()
