@@ -51,6 +51,7 @@ void exposeAltro() {
       .def("GetIterations", &ALTROSolver::GetIterations, ("self"_a))
       .def("GetPrimalFeasibility", &ALTROSolver::GetPrimalFeasibility,
            ("self"_a))
+      .def("GetStationarity", &ALTROSolver::GetStationarity, ("self"_a))
       .def("GetFinalObjective", &ALTROSolver::GetFinalObjective, ("self"_a))
       .def(
           "SetInitialState",
