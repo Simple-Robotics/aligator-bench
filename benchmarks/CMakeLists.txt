@@ -9,4 +9,3 @@ endfunction()
 
 create_benchmark(ur5.cpp)
 target_sources(ur5 PRIVATE ur5-util.cpp)
-create_benchmark(pendulum.cpp)
