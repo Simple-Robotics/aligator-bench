@@ -8,7 +8,7 @@
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <aligator/utils/rollout.hpp>
 
-#include "aligator-to-altro-types.hpp"
+#include "aligator-problem-to-altro.hpp"
 #include "util.hpp"
 #include "robots/robot_load.hpp"
 
@@ -16,6 +16,7 @@
 #include <matplot/matplot.h>
 
 namespace pin = pinocchio;
+namespace alcontext = aligator::context;
 using alcontext::CostAbstract;
 using alcontext::MatrixXs;
 using alcontext::StageModel;
@@ -84,10 +85,9 @@ int main() {
   std::vector<xyz::polymorphic<StageModel>> stages{nsteps, stage};
   TrajOptProblem problem{x0, stages, term_cost};
 
-  std::optional<alcontext::StageConstraint> term_constraint;
   if (use_term_cstr) {
-    term_constraint = createUr5TerminalConstraint(space, ee_term_pos);
-    problem.addTerminalConstraint(*term_constraint);
+    auto term_constraint = createUr5TerminalConstraint(space, ee_term_pos);
+    problem.addTerminalConstraint(term_constraint.func, term_constraint.set);
     fmt::println("Adding a terminal constraint");
   }
 
@@ -119,8 +119,8 @@ int main() {
   {
     using altro::ErrorCodes;
     using altro::SolveStatus;
-    // create ALTRO problem
-    altro::ALTROSolver solver{nsteps};
+    altro::ALTROSolver solver =
+        std::move(*aligator_bench::initAltroFromAligatorProblem(problem));
     altro::AltroOptions opts;
     opts.verbose = altro::Verbosity::Inner;
     opts.tol_cost = 1e-16;
@@ -130,24 +130,6 @@ int main() {
     opts.iterations_max = max_iters;
     opts.use_backtracking_linesearch = true;
     solver.SetOptions(opts);
-    const int nx = stage.nx1();
-    const int nu = stage.nu();
-    auto [c, gc, Hc] = aligatorCostToAltro(rcost);
-    auto [tc, gtc, Htc] = aligatorCostToAltro(term_cost);
-    auto [dyn, Jdyn] = aligatorExpDynamicsToAltro(dynamics);
-
-    solver.SetDimension(nx, nu);
-    solver.SetTimeStep(1.0);
-    solver.SetCostFunction(c, gc, Hc);
-    solver.SetCostFunction(tc, gtc, Htc, nsteps);
-    solver.SetExplicitDynamics(dyn, Jdyn);
-    if (use_term_cstr) {
-      auto [cstr_func, cstr_jac, cstype] =
-          aligatorConstraintToAltro(space.nx(), *term_constraint);
-      auto nr = term_constraint->func->nr;
-      solver.SetConstraint(cstr_func, cstr_jac, nr, cstype, "ee", nsteps);
-    }
-    solver.SetInitialState(x0.data(), nx);
     ErrorCodes err = solver.Initialize();
     if (err != ErrorCodes::NoError) {
       throw std::runtime_error("Altro initialization failed");
