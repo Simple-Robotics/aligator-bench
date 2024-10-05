@@ -6,6 +6,7 @@ set(
   aligator-to-altro-types.cpp
   aligator-problem-to-altro.cpp
   ipopt-interface.cpp
+  ipopt-solver.cpp
 )
 add_library(aligator_bench SHARED ${albench_SOURCES})
 target_include_directories(

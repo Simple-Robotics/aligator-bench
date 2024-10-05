@@ -8,9 +8,9 @@ This is a set of small benchmarks for the [aligator](https://github.com/Simple-R
 
 **Dependencies** Building this repo requires:
 
-- aligator
+- [aligator](https://github.com/Simple-Robotics/aligator)
 - [gtest](https://github.com/google/googletest)
-- [benchmark](https://github.com/google/benchmark)
+- [ipopt](https://github.com/coin-or/Ipopt) | [conda](https://anaconda.org/conda-forge/ipopt)
 
 These dependencies can easily be installed from conda/mamba:
 
