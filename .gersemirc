@@ -1,0 +1,4 @@
+line_length: 110
+indent: 2
+quiet: true
+warn_about_unknown_commands: false
