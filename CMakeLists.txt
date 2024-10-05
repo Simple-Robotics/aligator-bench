@@ -21,9 +21,7 @@ add_subdirectory(third-party/altro EXCLUDE_FROM_ALL)
 add_subdirectory(third-party/toml11)
 find_package(Matplot++ QUIET)
 if(NOT Matplot++_FOUND)
-  set(MATPLOTPP_BUILD_WITH_PEDANTIC_WARNINGS
-      OFF
-      CACHE BOOL "")
+  set(MATPLOTPP_BUILD_WITH_PEDANTIC_WARNINGS OFF CACHE BOOL "")
   add_subdirectory(third-party/matplotplusplus)
 endif()
 

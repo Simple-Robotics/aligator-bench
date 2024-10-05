@@ -14,21 +14,18 @@ else()
     Ipopt
     FAIL_MESSAGE DEFAULT_MSG
     REQUIRED_VARS Ipopt_INCLUDE_DIRS Ipopt_LIBRARIES
-    VERSION_VAR Ipopt_VERSION)
+    VERSION_VAR Ipopt_VERSION
+  )
 
   message(STATUS "  Ipopt library dirs: ${Ipopt_LIBRARY_DIRS}")
   message(STATUS "  Ipopt include dirs: ${Ipopt_INCLUDE_DIRS}")
   add_library(ipopt SHARED IMPORTED)
-  find_library(
-    ipopt_lib_path
-    NAMES ipopt
-    PATHS ${Ipopt_LIBRARY_DIRS})
+  find_library(ipopt_lib_path NAMES ipopt PATHS ${Ipopt_LIBRARY_DIRS})
   message(STATUS "  Ipopt library ipopt found at ${ipopt_lib_path}")
   set_target_properties(ipopt PROPERTIES IMPORTED_LOCATION ${ipopt_lib_path})
   target_include_directories(ipopt INTERFACE ${Ipopt_INCLUDE_DIRS})
 
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
-
   else()
     target_compile_definitions(ipopt INTERFACE HAVE_CSTDDEF)
   endif()
