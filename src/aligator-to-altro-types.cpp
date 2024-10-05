@@ -104,23 +104,23 @@ aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint) {
   return __aligatorConstraintRttiToAltro.at(&typeid(constraint));
 }
 
-altroConstraint
-aligatorConstraintToAltro(int nx, alcontext::StageConstraint constraint) {
+altroConstraint aligatorConstraintToAltro(int nx,
+                                          xyz::polymorphic<StageFunction> func,
+                                          xyz::polymorphic<ConstraintSet> set) {
   using altro::a_float;
-  auto data = constraint.func->createData();
-  altro::ConstraintFunction c = [nx, f = constraint.func,
-                                 data](a_float *val, const a_float *x_,
-                                       const a_float *u_) {
-    VecMap value{val, f->nr};
-    ConstVecMap x{x_, nx};
-    ConstVecMap u{u_, f->nu};
+  auto data = func->createData();
+  altro::ConstraintFunction c =
+      [nx, f = func, data](a_float *val, const a_float *x_, const a_float *u_) {
+        VecMap value{val, f->nr};
+        ConstVecMap x{x_, nx};
+        ConstVecMap u{u_, f->nu};
 
-    f->evaluate(x, u, x, *data);
-    value = data->value_;
-  };
-  altro::ConstraintJacobian Jc = [nx, f = constraint.func,
-                                  data](a_float *jac_, const a_float *x_,
-                                        const a_float *u_) {
+        f->evaluate(x, u, x, *data);
+        value = data->value_;
+      };
+  altro::ConstraintJacobian Jc = [nx, f = func, data](a_float *jac_,
+                                                      const a_float *x_,
+                                                      const a_float *u_) {
     const auto ndx = f->ndx1;
     const auto nu = f->nu;
     MatMap jac{jac_, f->nr, ndx + nu};
@@ -131,6 +131,6 @@ aligatorConstraintToAltro(int nx, alcontext::StageConstraint constraint) {
     jac.leftCols(ndx) = data->Jx_;
     jac.rightCols(nu) = data->Ju_;
   };
-  altro::ConstraintType ct = aligatorConstraintAltroType(*constraint.set);
+  altro::ConstraintType ct = aligatorConstraintAltroType(*set);
   return {c, Jc, ct};
 }

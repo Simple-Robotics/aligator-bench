@@ -5,9 +5,11 @@
 #include <altro/solver/typedefs.hpp>
 
 namespace alcontext = aligator::context;
+using alcontext::ConstraintSet;
 using alcontext::CostAbstract;
 using alcontext::DynamicsModel;
 using alcontext::ExplicitDynamics;
+using alcontext::StageFunction;
 
 /* Typedefs */
 
@@ -36,4 +38,5 @@ altro::ConstraintType
 aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint);
 
 altroConstraint
-aligatorConstraintToAltro(int nx, alcontext::StageConstraint constraint);
+aligatorConstraintToAltro(int nx, xyz::polymorphic<StageFunction> constraint,
+                          xyz::polymorphic<ConstraintSet> set);

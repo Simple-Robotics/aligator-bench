@@ -19,7 +19,7 @@ initAltroFromAligatorProblem(const alcontext::TrajOptProblem &problem) {
     // constraints
     if (cstrs.size() == 1) {
       auto [c, Jc, ct] =
-          aligatorConstraintToAltro(nx, {cstrs.funcs[0], cstrs.sets[0]});
+          aligatorConstraintToAltro(nx, cstrs.funcs[0], cstrs.sets[0]);
       const int dim = (int)cstrs.dims()[0];
       solver.SetConstraint(c, Jc, dim, ct, "constraint", k, k + 1);
     } else if (cstrs.size() > 1) {
