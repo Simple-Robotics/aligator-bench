@@ -13,7 +13,7 @@ namespace aligator_bench {
 using alcontext::TrajOptProblem;
 
 struct SolverIpopt {
-  SolverIpopt();
+  SolverIpopt(bool rethrow_nonipopt_exception = false);
   void setup(const TrajOptProblem &problem);
   std::unique_ptr<Ipopt::IpoptApplication> ipopt_app_;
 };
