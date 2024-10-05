@@ -7,6 +7,7 @@
 #include <aligator/modelling/dynamics/multibody-free-fwd.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <aligator/utils/rollout.hpp>
+#include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
 
 #include "aligator-problem-to-altro.hpp"
 #include "util.hpp"
@@ -49,9 +50,6 @@ auto createRegTerminalCost(Space space) {
   return aligator::QuadraticStateCostTpl<double>{space, nu, x0, wr};
 }
 
-alcontext::StageConstraint createUr5TerminalConstraint(Space space,
-                                                       Eigen::Vector3d ee_pos);
-
 int main() {
   const double dt = 5e-2;
   const size_t nsteps = 120;
@@ -86,8 +84,9 @@ int main() {
   TrajOptProblem problem{x0, stages, term_cost};
 
   if (use_term_cstr) {
-    auto term_constraint = createUr5TerminalConstraint(space, ee_term_pos);
-    problem.addTerminalConstraint(term_constraint.func, term_constraint.set);
+    problem.addTerminalConstraint(
+        createUr5EeResidual(space, ee_term_pos),
+        proxsuite::nlp::EqualityConstraintTpl<double>{});
     fmt::println("Adding a terminal constraint");
   }
 
