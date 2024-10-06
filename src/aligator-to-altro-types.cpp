@@ -115,7 +115,7 @@ altroConstraint aligatorConstraintToAltro(int nx,
         ConstVecMap x{x_, nx};
         ConstVecMap u{u_, f->nu};
 
-        f->evaluate(x, u, x, *data);
+        f->evaluate(x, u, *data);
         value = data->value_;
       };
   altro::ConstraintJacobian Jc = [nx, f = func, data](a_float *jac_,
@@ -126,8 +126,8 @@ altroConstraint aligatorConstraintToAltro(int nx,
     MatMap jac{jac_, f->nr, ndx + nu};
     ConstVecMap x{x_, nx};
     ConstVecMap u{u_, nu};
-    f->evaluate(x, u, x, *data);
-    f->computeJacobians(x, u, x, *data);
+    f->evaluate(x, u, *data);
+    f->computeJacobians(x, u, *data);
     jac.leftCols(ndx) = data->Jx_;
     jac.rightCols(nu) = data->Ju_;
   };
