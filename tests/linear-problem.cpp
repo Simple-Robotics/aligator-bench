@@ -6,12 +6,11 @@
 
 #include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
 
-auto createLinearProblem(const size_t horizon) -> TrajOptProblem {
+auto createLinearProblem(const size_t horizon, const int nx, const int nu)
+    -> TrajOptProblem {
   using aligator::LinearFunctionTpl;
   using aligator::QuadraticCostTpl;
   using aligator::dynamics::LinearDiscreteDynamicsTpl;
-  const int nx = 4;
-  const int nu = 2;
   MatrixXs w_x{nx, nx};
   w_x.setZero();
   MatrixXs w_u{nu, nu};
