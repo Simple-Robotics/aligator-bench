@@ -6,6 +6,8 @@
 
 #include <boost/unordered_map.hpp>
 
+namespace aligator_bench {
+
 altroCostTriplet aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost) {
 
   const auto data = aliCost->createData();
@@ -134,3 +136,5 @@ altroConstraint aligatorConstraintToAltro(int nx,
   altro::ConstraintType ct = aligatorConstraintAltroType(*set);
   return {c, Jc, ct};
 }
+
+} // namespace aligator_bench

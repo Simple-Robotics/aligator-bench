@@ -16,6 +16,7 @@
 #include <altro/altro.hpp>
 #include <matplot/matplot.h>
 
+using namespace aligator_bench;
 namespace pin = pinocchio;
 namespace alcontext = aligator::context;
 using alcontext::CostAbstract;
