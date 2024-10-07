@@ -3,7 +3,7 @@
 	url = https://github.com/ManifoldFR/jrl-cmakemodules.git
 [submodule "third-party/altro"]
 	path = third-party/altro
-	url = git@github.com:bjack205/altro.git
+	url = git@github.com:ManifoldFR/altro.git
 [submodule "third-party/toml11"]
 	path = third-party/toml11
 	url = git@github.com:ToruNiina/toml11.git
