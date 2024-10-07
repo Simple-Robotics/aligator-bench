@@ -4,6 +4,8 @@
 #include <proxsuite-nlp/modelling/constraints.hpp>
 #include <altro/altro.hpp>
 
+using namespace aligator_bench;
+
 GTEST_TEST(aligatorToAltro, EqualityConstraint) {
   using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
   auto ct = altro::ConstraintType::EQUALITY;
