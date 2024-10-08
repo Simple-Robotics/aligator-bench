@@ -26,13 +26,23 @@ struct SolverTest : public testing::Test {
   int nx = 50;
   int nu = 40;
   TrajOptProblem problem;
+  aligator_bench::SolverIpopt solver;
 
   SolverTest() : problem{createLinearProblem(horizon, nx, nu)} {}
 };
 
 GTEST_TEST_F(SolverTest, Initialize) {
-  aligator_bench::SolverIpopt solver;
   auto status = solver.setup(problem);
 
   EXPECT_EQ(status, Ipopt::Solve_Succeeded);
+}
+
+GTEST_TEST_F(SolverTest, setTol) {
+  solver.setOption("tol", 3.14e-6);
+  std::string_view outfile = "ipopt.out";
+  solver.setOption("output_file", outfile);
+  auto opts = solver.ipopt_app_->Options();
+  std::string optlist;
+  opts->PrintUserOptions(optlist);
+  fmt::println("{}", optlist);
 }

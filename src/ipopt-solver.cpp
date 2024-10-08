@@ -23,6 +23,9 @@ SolverIpopt::setup(const TrajOptProblem &problem) {
   return status;
 }
 
+void SolverIpopt::setOption(const std::string &name, std::string_view value) {
+  ipopt_app_->Options()->SetStringValue(name, std::string(value));
+}
 void SolverIpopt::setOption(const std::string &name, const std::string &value) {
   ipopt_app_->Options()->SetStringValue(name, value);
 }
@@ -31,9 +34,6 @@ void SolverIpopt::setOption(const std::string &name, int value) {
 }
 void SolverIpopt::setOption(const std::string &name, double value) {
   ipopt_app_->Options()->SetNumericValue(name, value);
-}
-void SolverIpopt::setOption(const std::string &name, bool value) {
-  ipopt_app_->Options()->SetBoolValue(name, value);
 }
 
 } // namespace aligator_bench
