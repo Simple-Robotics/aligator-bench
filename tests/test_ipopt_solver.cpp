@@ -28,12 +28,13 @@ struct SolverTest : public testing::Test {
   TrajOptProblem problem;
   aligator_bench::SolverIpopt solver;
 
-  SolverTest() : problem{createLinearProblem(horizon, nx, nu)} {}
+  SolverTest() : problem{createLinearProblem(horizon, nx, nu)}, solver{true} {}
+
+  void SetUp() override { solver.setup(problem); }
 };
 
 GTEST_TEST_F(SolverTest, Initialize) {
   auto status = solver.setup(problem);
-
   EXPECT_EQ(status, Ipopt::Solve_Succeeded);
 }
 
@@ -45,4 +46,9 @@ GTEST_TEST_F(SolverTest, setTol) {
   std::string optlist;
   opts->PrintUserOptions(optlist);
   fmt::println("{}", optlist);
+}
+
+GTEST_TEST_F(SolverTest, solve) {
+  auto status = solver.solve();
+  EXPECT_EQ(status, Ipopt::Solve_Succeeded);
 }

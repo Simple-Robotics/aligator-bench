@@ -14,7 +14,7 @@ SolverIpopt::SolverIpopt(bool rethrow_nonipopt_exception) {
 
 Ipopt::ApplicationReturnStatus
 SolverIpopt::setup(const TrajOptProblem &problem) {
-  Ipopt::SmartPtr<TrajOptIpoptNLP> nlp_adapter = new TrajOptIpoptNLP(problem);
+  adapter_ = new TrajOptIpoptNLP(problem);
   Ipopt::ApplicationReturnStatus status;
   status = ipopt_app_->Initialize();
   if (status != Ipopt::Solve_Succeeded) {
@@ -34,6 +34,14 @@ void SolverIpopt::setOption(const std::string &name, int value) {
 }
 void SolverIpopt::setOption(const std::string &name, double value) {
   ipopt_app_->Options()->SetNumericValue(name, value);
+}
+
+Ipopt::ApplicationReturnStatus SolverIpopt::solve() {
+  auto status = ipopt_app_->OptimizeTNLP(adapter_);
+  if (status != Ipopt::Solve_Succeeded) {
+    fmt::println("\n ** Error during optimization! (Code {:d})", int(status));
+  }
+  return status;
 }
 
 } // namespace aligator_bench
