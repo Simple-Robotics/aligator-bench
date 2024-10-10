@@ -3,9 +3,50 @@
 #include "linear-problem.hpp"
 #include "ipopt-interface.hpp"
 #include "ipopt-solver.hpp"
+#include "triang_util.hpp"
 #include <IpIpoptApplication.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 #include <proxsuite-nlp/fmt-eigen.hpp>
+
+using namespace aligator_bench;
+
+GTEST_TEST(Triang, Size) {
+  const long n = 4;
+  EXPECT_EQ(lowTriangSize(n), 10);
+}
+
+GTEST_TEST(Triang, setZero) {
+  VectorXs x;
+  x.setOnes(10);
+  lowTriangSetZero(4, x.data());
+  fmt::println("set to zero: {}", fmt::streamed(x.transpose()));
+  EXPECT_TRUE(x.isZero());
+}
+
+GTEST_TEST(Triang, addEigen) {
+  const long n = 3;
+  VectorXs x;
+  x.resize(lowTriangSize(n));
+  lowTriangSetZero(n, x.data());
+  MatrixXs a = MatrixXs::Ones(n, n);
+  lowTriangAddFromEigen(x.data(), a, 2.0);
+  lowTriangCoeff(n, x.data(), 2, 0) = -33;
+  fmt::println("x:  {}", x.transpose());
+
+  MatrixXs b;
+  lowTriangToEigen(n, x.data(), b);
+  fmt::println("b:\n{}", b);
+}
+
+GTEST_TEST(Triang, setCoeff) {
+  const long n = 3;
+  VectorXs x;
+  x.resize(lowTriangSize(n));
+  lowTriangSetZero(n, x.data());
+  lowTriangCoeff(n, x.data(), 1, 1) = 42.;
+  lowTriangCoeff(n, x.data(), 2, 2) = 13.;
+  fmt::println("x:  {}", fmt::streamed(x.transpose()));
+}
 
 class AdapterTest : public testing::Test {
 public:
@@ -13,7 +54,7 @@ public:
   int nx = 4;
   int nu = 2;
   TrajOptProblem problem;
-  aligator_bench::TrajOptIpoptNLP adapter;
+  TrajOptIpoptNLP adapter;
 
   AdapterTest()
       : problem{createLinearProblem(horizon, nx, nu)}, adapter{problem} {}
@@ -51,7 +92,6 @@ GTEST_TEST_F(AdapterTest, get_bounds_info) {
 }
 
 GTEST_TEST_F(AdapterTest, get_starting_point) {
-  using aligator_bench::ConstVecMap;
   double *traj_data = new double[size_t(nvars)];
   double *lambda_data = new double[size_t(nconstraints)];
   bool ret = adapter.get_starting_point(nvars, true, traj_data, false, 0, 0,
@@ -66,7 +106,7 @@ struct SolverTest : public testing::Test {
   int nx = 50;
   int nu = 40;
   TrajOptProblem problem;
-  aligator_bench::SolverIpopt solver;
+  SolverIpopt solver;
   Ipopt::ApplicationReturnStatus init_status;
 
   SolverTest()

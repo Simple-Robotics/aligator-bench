@@ -1,4 +1,5 @@
-#include "./types.hpp"
+#include "types.hpp"
+#include "triang_util.hpp"
 #include "ipopt-interface.hpp"
 
 #include <aligator/core/traj-opt-problem.hpp>
@@ -510,18 +511,21 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
         int(idx), nele_hess);
   } else {
     double *ptr = values;
+    std::fill_n(ptr, nele_hess, 0.);
     auto &sds = problem_data_.stage_data;
     for (std::size_t i = 0; i < nsteps; i++) {
       const auto &stage = problem_.stages_[i];
       const int ndx = stage->ndx1();
       const int nu = stage->nu();
-      MatMap Hess{ptr, ndx + nu, ndx + nu};
-      Hess = obj_factor * sds[i]->cost_data->hess_;
-      ptr += (ndx + nu) * (ndx + nu);
+
+      auto &H = sds[i]->cost_data->hess_;
+      lowTriangAddFromEigen(ptr, H, obj_factor);
 
       if (stage->numConstraints() > 0) {
-        Hess += sds[i]->constraint_data[0]->vhp_buffer_;
+        auto &H = sds[i]->constraint_data[0]->vhp_buffer_;
+        lowTriangAddFromEigen(ptr, H, 1.);
       }
+      ptr += lowTriangSize(ndx + nu);
     }
 
     {
@@ -530,10 +534,11 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       auto &tcsd = problem_data_.term_cstr_data;
       const int ndx = tcd->ndx_;
       const int nu = tcd->nu_;
-      MatMap Hess{ptr, ndx + nu, ndx + nu};
-      Hess = obj_factor * tcd->hess_;
+      assert(tcd->hess_.cols() == ndx + nu);
+      assert(tcd->hess_.rows() == ndx + nu);
+      lowTriangAddFromEigen(ptr, tcd->hess_, obj_factor);
       if (!tcsd.empty()) {
-        Hess += tcsd[0]->vhp_buffer_;
+        lowTriangAddFromEigen(ptr, tcsd[0]->vhp_buffer_, 1.0);
       }
     }
   }
