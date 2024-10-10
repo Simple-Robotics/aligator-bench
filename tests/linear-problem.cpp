@@ -6,8 +6,8 @@
 
 #include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
 
-auto createLinearProblem(const size_t horizon, const int nx, const int nu)
-    -> TrajOptProblem {
+auto createLinearProblem(const size_t horizon, const int nx, const int nu,
+                         bool terminal) -> TrajOptProblem {
   using aligator::LinearFunctionTpl;
   using aligator::QuadraticCostTpl;
   using aligator::dynamics::LinearDiscreteDynamicsTpl;
@@ -27,11 +27,13 @@ auto createLinearProblem(const size_t horizon, const int nx, const int nu)
   VectorXs x0 = VectorXs::Random(nx);
   TrajOptProblem problem{x0, std::move(stages), cost};
 
-  LinearFunctionTpl<double> tfunc{nx, nu, 1};
-  tfunc.A_.setOnes();
-  tfunc.B_.setZero();
-  tfunc.d_.setZero();
-  problem.addTerminalConstraint(
-      tfunc, proxsuite::nlp::EqualityConstraintTpl<double>{});
+  if (terminal) {
+    LinearFunctionTpl<double> tfunc{nx, nu, 1};
+    tfunc.A_.setOnes();
+    tfunc.B_.setZero();
+    tfunc.d_.setZero();
+    problem.addTerminalConstraint(
+        tfunc, proxsuite::nlp::EqualityConstraintTpl<double>{});
+  }
   return problem;
 }

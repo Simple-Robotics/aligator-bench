@@ -12,7 +12,8 @@ void exposeIpoptSolver() {
       "setOption", &SolverIpopt::setOption, ("self"_a, "name", "value"))
   bp::class_<SolverIpopt, boost::noncopyable>("SolverIpopt", bp::no_init)
       .def(bp::init<bool>(("self"_a, "rethrow_nonipopt_exceptions"_a = false)))
-      .def("setup", &SolverIpopt::setup, ("self"_a, "problem"))
+      .def("setup", &SolverIpopt::setup,
+           ("self"_a, "problem", "verbose"_a = false))
       ._c(const std::string &)
       ._c(int)
       ._c(double)

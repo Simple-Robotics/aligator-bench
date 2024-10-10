@@ -12,20 +12,22 @@ SolverIpopt::SolverIpopt(bool rethrow_nonipopt_exception) {
   ipopt_app_->RethrowNonIpoptException(rethrow_nonipopt_exception);
 }
 
-Ipopt::ApplicationReturnStatus
-SolverIpopt::setup(const TrajOptProblem &problem) {
-  adapter_ = new TrajOptIpoptNLP(problem);
+Ipopt::ApplicationReturnStatus SolverIpopt::setup(const TrajOptProblem &problem,
+                                                  bool verbose) {
+  adapter_ = new TrajOptIpoptNLP(problem, verbose);
   Ipopt::ApplicationReturnStatus status;
   status = ipopt_app_->Initialize();
   if (status != Ipopt::Solve_Succeeded) {
     fmt::println("\n ** Error during initialization! (Code {:d})", int(status));
   }
+
+  setOption("jacobian_approximation", "exact");
+  setOption("print_level", 4);
+  setOption("linear_solver", "mumps");
+
   return status;
 }
 
-void SolverIpopt::setOption(const std::string &name, std::string_view value) {
-  ipopt_app_->Options()->SetStringValue(name, std::string(value));
-}
 void SolverIpopt::setOption(const std::string &name, const std::string &value) {
   ipopt_app_->Options()->SetStringValue(name, value);
 }

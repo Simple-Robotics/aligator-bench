@@ -18,9 +18,9 @@ class TrajOptIpoptNLP;
 
 struct SolverIpopt {
   SolverIpopt(bool rethrow_nonipopt_exception = false);
-  Ipopt::ApplicationReturnStatus setup(const TrajOptProblem &problem);
+  Ipopt::ApplicationReturnStatus setup(const TrajOptProblem &problem,
+                                       bool verbose = false);
 
-  void setOption(const std::string &name, std::string_view value);
   void setOption(const std::string &name, const std::string &value);
   void setOption(const std::string &name, int value);
   void setOption(const std::string &name, double value);

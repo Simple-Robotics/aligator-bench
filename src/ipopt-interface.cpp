@@ -5,18 +5,20 @@
 #include <aligator/core/stage-data.hpp>
 #include <aligator/core/cost-abstract.hpp>
 
-#define ALIBENCH_ASSERT_PRETTY(expr, msg)                                      \
+#define ALIBENCH_ASSERT_PRETTY(expr, ...)                                      \
   if (!(expr)) {                                                               \
-    ALIGATOR_RUNTIME_ERROR(msg);                                               \
+    ALIGATOR_RUNTIME_ERROR(__VA_ARGS__);                                       \
   }
 
 namespace aligator_bench {
 
-TrajOptIpoptNLP::TrajOptIpoptNLP(const TrajOptProblem &problem)
+TrajOptIpoptNLP::TrajOptIpoptNLP(const TrajOptProblem &problem, bool verbose)
     : Ipopt::TNLP(), problem_(problem), problem_data_(problem) {
   const size_t nsteps = problem_.numSteps();
   xs_.resize(nsteps + 1);
   us_.resize(nsteps);
+  lams_.resize(nsteps + 1);
+  vs_.resize(nsteps + 1);
   const auto &stages = problem.stages_;
   nvars_ = 0;
   nconstraints_ = 0;
@@ -25,53 +27,72 @@ TrajOptIpoptNLP::TrajOptIpoptNLP(const TrajOptProblem &problem)
   idx_constraints_[0] = 0;
   nconstraints_ += problem_.init_constraint_->nr;
 
+  {
+    // initial
+    lams_[0].setZero(problem_.init_constraint_->nr);
+  }
+
   for (size_t i = 0; i < nsteps; i++) {
     const int nxi = stages[i]->nx1();
     const int ndxi = stages[i]->ndx1();
     const int nui = stages[i]->nu();
+    const int nc = stages[i]->nc();
+    const int ndx2 = stages[i]->ndx2();
     xs_[i].setZero(nxi);
     us_[i].setZero(nui);
+    lams_[i + 1].setZero(ndx2);
+    vs_[i].setZero(nc);
     idx_xu_[i] = nvars_;
     idx_constraints_[i + 1] = nconstraints_;
 
     nvars_ += ndxi + nui;
     nconstraints_ += stages[i]->numDual();
   }
-  const int nxN = stages.back()->nx2();
-  const int ndxN = stages.back()->ndx2();
-  xs_.back().setZero(nxN);
-  idx_xu_[nsteps] = nvars_;
-  idx_constraints_[nsteps + 1] = nconstraints_;
-  nvars_ += ndxN;
-  nconstraints_ += problem_.term_cstrs_.totalDim();
-
-  const size_t num_digits =
-      std::max(size_t(std::log10(nsteps)) + 1, std::size("Index"));
-  const size_t ndigits_vars =
-      std::max(size_t(std::log10(nvars_)) + 1, std::size("(x,u)"));
-
-  fmt::println("{:s} indices:", __FUNCTION__);
-  fmt::println("Initial constraint from {} to {}", 0, idx_constraints_[1]);
-
-  fmt::print("┌{0:─^{1}}┬{0:─^{2}}┬{0:─^{2}}┐\n", "", num_digits + 1,
-             ndigits_vars + 1);
-  fmt::print("│ {0:<{1}s}│ {2:^{4}s}│ {3:^{4}s}│\n", "Index", num_digits,
-             "(x,u)", "(f,g)", ndigits_vars);
-
-  for (size_t i = 0; i <= nsteps; i++) {
-    fmt::print("│ {0:<{1}d}│ {2:<{4}d}│ {3:<{4}d}│\n", i, num_digits,
-               idx_xu_[i], idx_constraints_[i + 1], ndigits_vars);
+  {
+    // terminal
+    const int nxN = stages.back()->nx2();
+    const int ndxN = stages.back()->ndx2();
+    const int ncN = int(problem_.term_cstrs_.totalDim());
+    xs_[nsteps].setZero(nxN);
+    vs_[nsteps].setZero(ncN);
+    idx_xu_[nsteps] = nvars_;
+    idx_constraints_[nsteps + 1] = nconstraints_;
+    nvars_ += ndxN;
+    nconstraints_ += problem_.term_cstrs_.totalDim();
   }
-  fmt::print("└{0:─^{1}}┴{0:─^{2}}┴{0:─^{2}}┘\n", "", num_digits + 1,
-             ndigits_vars + 1);
-  fmt::println("Total number of: variables    {:d}\n"
-               "                 constraints  {:d}\n",
-               nvars_, nconstraints_);
+
+  if (verbose) {
+    const size_t num_digits =
+        std::max(size_t(std::log10(nsteps)) + 1, std::size("Index"));
+    const size_t ndigits_vars =
+        std::max(size_t(std::log10(nvars_)) + 1, std::size("(x,u)"));
+
+    fmt::println("{:s} indices:", __FUNCTION__);
+    fmt::println("Initial constraint from {} to {}", 0, idx_constraints_[1]);
+
+    fmt::print("┌{0:─^{1}}┬{0:─^{2}}┬{0:─^{2}}┐\n", "", num_digits + 1,
+               ndigits_vars + 1);
+    fmt::print("│ {0:<{1}s}│ {2:^{4}s}│ {3:^{4}s}│\n", "Index", num_digits,
+               "(x,u)", "(f,g)", ndigits_vars);
+
+    for (size_t i = 0; i <= nsteps; i++) {
+      fmt::print("│ {0:<{1}d}│ {2:<{4}d}│ {3:<{4}d}│\n", i, num_digits,
+                 idx_xu_[i], idx_constraints_[i + 1], ndigits_vars);
+    }
+    fmt::print("└{0:─^{1}}┴{0:─^{2}}┴{0:─^{2}}┘\n", "", num_digits + 1,
+               ndigits_vars + 1);
+    fmt::println("Total number of: variables    {:d}\n"
+                 "                 constraints  {:d}\n",
+                 nvars_, nconstraints_);
+  }
 }
 
 bool TrajOptIpoptNLP::get_nlp_info(Index &n, Index &m, Index &nnz_jac_g,
                                    Index &nnz_h_lag,
                                    IndexStyleEnum &index_style) {
+  nnz_jac_g = 0;
+  // NOTE: only the lower diagonal entries
+  nnz_h_lag = 0;
   index_style = C_STYLE;
   if (!problem_.checkIntegrity())
     return false;
@@ -85,20 +106,22 @@ bool TrajOptIpoptNLP::get_nlp_info(Index &n, Index &m, Index &nnz_jac_g,
 
   for (const auto &stage : problem_.stages_) {
     // dynamics
+    const int ndx1 = stage->ndx1();
+    const int nu = stage->nu();
     const int ndx2 = stage->ndx2();
-    nnz_jac_g += ndx2 * (stage->ndx1() + stage->nu() + stage->ndx2());
-    // constraints
-    const int ndx_nu = stage->ndx1() + stage->nu();
     const int nc = stage->nc();
+    nnz_jac_g += ndx2 * (ndx1 + nu + ndx2);
+    // constraints
+    const int ndx_nu = ndx1 + nu;
     nnz_jac_g += nc * ndx_nu;
     // hessian
-    nnz_h_lag += ndx_nu * ndx_nu;
+    nnz_h_lag += ndx_nu * (ndx_nu + 1) / 2;
   }
 
   // terminal
   {
     const int ndxN = problem_.term_cost_->ndx();
-    nnz_h_lag += ndxN * ndxN;
+    nnz_h_lag += ndxN * (ndxN + 1) / 2;
 
     auto &constraints = problem_.term_cstrs_;
     nnz_jac_g += int(constraints.totalDim()) * ndxN;
@@ -151,7 +174,7 @@ bool TrajOptIpoptNLP::get_starting_point(Index n, bool init_traj, double *traj,
   // std::fill_n(z_L, m, -2e19);
   // std::fill_n(z_U, m, +2e19);
 
-  {
+  if (init_lambda) {
     const int nr = problem_.init_constraint_->nr;
     VecMap{lambda, nr} = lams_[0];
   }
@@ -172,8 +195,8 @@ bool TrajOptIpoptNLP::get_starting_point(Index n, bool init_traj, double *traj,
     VecMap{traj + sidx + ndxi, nui} = us_[i];
 
     if (init_lambda) {
-      VecMap{lambda + cidx, nci} = lams_[i + 1];
-      VecMap{lambda + cidx + nci, ndxip1} = vs_[i];
+      VecMap{lambda + cidx, ndxip1} = lams_[i + 1];
+      VecMap{lambda + cidx + ndxip1, nci} = vs_[i];
     }
   }
 
@@ -184,7 +207,8 @@ bool TrajOptIpoptNLP::get_starting_point(Index n, bool init_traj, double *traj,
     const int sidx = idx_xu_[nsteps];
     const int cidx = idx_constraints_[nsteps + 1];
     VecMap{traj + sidx, ndx} = xs_[nsteps];
-    VecMap{lambda + cidx, nc} = vs_[nsteps];
+    if (init_lambda)
+      VecMap{lambda + cidx, nc} = vs_[nsteps];
   }
 
   return true;
@@ -200,7 +224,7 @@ void TrajOptIpoptNLP::update_internal_primal_variables(const double *traj) {
     const int nui = stages[i]->nu();
     const int sidx = idx_xu_[i];
 
-    assert(xs_[i].size() == nxi);
+    assert(xs_[i].size() == ndxi);
     assert(us_[i].size() == nui);
     xs_[i] = ConstVecMap{traj + sidx, ndxi};
     us_[i] = ConstVecMap{traj + sidx + ndxi, nui};
@@ -250,6 +274,7 @@ bool TrajOptIpoptNLP::eval_grad_f(Index n, const double *traj, bool new_x,
   ALIBENCH_ASSERT_PRETTY(n == nvars_, "");
   if (new_x) {
     this->update_internal_primal_variables(traj);
+    problem_.evaluate(xs_, us_, problem_data_);
     problem_.computeDerivatives(xs_, us_, problem_data_);
   }
   const std::size_t nsteps = problem_.numSteps();
@@ -296,15 +321,18 @@ bool TrajOptIpoptNLP::eval_g(Index, const double *traj, bool new_x, Index,
     const auto &sd = problem_data_.stage_data[i];
     VecMap{g + cidx, ndx2} = sd->dynamics_data->value_;
     // TODO: fix for multiple constraints...
-    VecMap{g + cidx + ndx2, nc} = sd->constraint_data[0]->value_;
+    if (!sd->constraint_data.empty())
+      VecMap{g + cidx + ndx2, nc} = sd->constraint_data[0]->value_;
   }
 
-  {
+  if (!problem_.term_cstrs_.empty()) {
     // terminal
+    auto &tcsd = problem_data_.term_cstr_data[0];
     const int nc = int(problem_.term_cstrs_.totalDim());
     const int cidx = idx_constraints_[nsteps + 1];
+    assert(nc > 0);
     // TODO: fix for multiple constraints
-    VecMap{g + cidx, nc} = problem_data_.term_cstr_data[0]->value_;
+    VecMap{g + cidx, nc} = tcsd->value_;
   }
 
   return true;
@@ -315,15 +343,210 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
                                  double *values) {
   if (new_x) {
     this->update_internal_primal_variables(traj);
+    problem_.evaluate(xs_, us_, problem_data_);
     problem_.computeDerivatives(xs_, us_, problem_data_);
+  }
+  const std::size_t nsteps = problem_.numSteps();
+
+  if (values == NULL) {
+    std::size_t idx = 0;
+    // cursor corresponding to the current constraint
+
+    // initial condition
+    {
+      const int cid = idx_constraints_[0];
+      auto &init_cond = problem_.init_constraint_;
+      const int ndx = init_cond->ndx1;
+      const int nr = init_cond->nr;
+      for (int idx_row = 0; idx_row < nr; idx_row++) {
+        for (int idx_col = 0; idx_col < ndx; idx_col++) {
+          iRow[idx] = cid + idx_row;
+          jCol[idx] = idx_col;
+          idx++;
+        }
+      }
+    }
+
+    for (std::size_t i = 0; i < nsteps; i++) {
+      auto &stage = problem_.stages_[i];
+      const int ndx = stage->ndx1();
+      const int nu = stage->nu();
+      const int ndx2 = stage->ndx2();
+      const int nc = stage->nc();
+      int cid = idx_constraints_[i + 1];
+
+      for (int idx_row = 0; idx_row < ndx2; idx_row++) {
+        for (int idx_col = 0; idx_col < ndx + nu + ndx2; idx_col++) {
+          iRow[idx] = cid + idx_row;
+          jCol[idx] = idx_xu_[i] + idx_col;
+          idx++;
+        }
+      }
+
+      cid += ndx2;
+      // nc rows
+      for (int idx_row = 0; idx_row < nc; idx_row++) {
+        // ndx + nu cols
+        for (int idx_col = 0; idx_col < ndx + nu; idx_col++) {
+          iRow[idx] = cid + idx_row;
+          jCol[idx] = idx_xu_[i] + idx_col;
+          idx++;
+        }
+      }
+    }
+
+    {
+      // terminal constraint
+      const int nr = int(problem_.term_cstrs_.totalDim());
+      const int ndx = problem_.term_cost_->ndx();
+      const int cid = idx_constraints_[nsteps + 1];
+      for (int idx_row = 0; idx_row < nr; idx_row++) {
+        for (int idx_col = 0; idx_col < ndx; idx_col++) {
+          iRow[idx] = cid + idx_row;
+          jCol[idx] = idx_xu_[nsteps] + idx_col;
+          idx++;
+        }
+      }
+    }
+
+    ALIBENCH_ASSERT_PRETTY(
+        int(idx) == nele_jac,
+        "Number of Jacobian elements set ({:d}) does not fit nnz_jac_g ({:d})",
+        int(idx), nele_jac);
+  } else {
+    auto &sds = problem_data_.stage_data;
+    // increment this mf
+    double *ptr = values;
+    // cursor corresponding to the current constraint
+
+    // initial condition
+    {
+      auto &idd = problem_data_.init_data;
+      const int ndx = idd->ndx1;
+      const int nr = idd->nr;
+      MatMap jx0{ptr, nr, ndx};
+      jx0 = idd->Jx_;
+      ptr += ndx * nr;
+    }
+
+    for (std::size_t i = 0; i < nsteps; i++) {
+      auto &stage = problem_.stages_[i];
+      const int ndx = stage->ndx1();
+      const int nu = stage->nu();
+      const int ndx2 = stage->ndx2();
+      const int nc = stage->nc();
+
+      MatMap djx{ptr, ndx2, ndx};
+      ptr += ndx2 * ndx;
+      MatMap dju{ptr, ndx2, nu};
+      ptr += ndx2 * nu;
+      MatMap djy{ptr, ndx2, ndx2};
+      ptr += ndx2 * ndx2;
+
+      djx = sds[i]->dynamics_data->Jx_;
+      dju = sds[i]->dynamics_data->Ju_;
+      djy = sds[i]->dynamics_data->Jy_;
+
+      if (nc > 0) {
+        MatMap jx{ptr, nc, ndx};
+        ptr += nc * ndx;
+        MatMap ju{ptr, nc, nu};
+        ptr += nc * nu;
+
+        jx = sds[i]->constraint_data[0]->Jx_;
+        ju = sds[i]->constraint_data[0]->Ju_;
+      }
+    }
+
+    if (!problem_.term_cstrs_.empty()) {
+      // terminal constraint
+      auto &tcd = problem_data_.term_cstr_data[0];
+      const int nr = tcd->nr;
+      const int ndx = tcd->ndx1;
+      MatMap jx{ptr, nr, ndx};
+      jx = tcd->Jx_;
+    }
+  }
+  return true;
+}
+
+bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
+                              double obj_factor, Index m, const double *lambda,
+                              bool new_lambda, Index nele_hess, Index *iRow,
+                              Index *jCol, double *values) {
+  if (new_x) {
+    this->update_internal_primal_variables(traj);
+    problem_.evaluate(xs_, us_, problem_data_);
+    problem_.computeDerivatives(xs_, us_, problem_data_);
+  }
+  const std::size_t nsteps = problem_.numSteps();
+  if (values == NULL) {
+    std::size_t idx = 0;
+    for (std::size_t i = 0; i < nsteps; i++) {
+      const auto &stage = problem_.stages_[i];
+      const int ndxi = stage->ndx1();
+      const int nui = stage->nu();
+      // add (xk, uk) sparsity pattern
+      // just the lower triangular part.
+      for (int idx_row = 0; idx_row < ndxi + nui; idx_row++) {
+        for (int idx_col = 0; idx_col < idx_row; idx_col++) {
+          iRow[idx] = idx_xu_[i] + idx_row;
+          jCol[idx] = idx_xu_[i] + idx_col;
+          idx++;
+        }
+      }
+    }
+    const int ndxN = problem_.term_cost_->ndx();
+    for (int idx_row = 0; idx_row < ndxN; idx_row++) {
+      for (int idx_col = 0; idx_col < idx_row; idx_col++) {
+        iRow[idx] = idx_xu_[nsteps] + idx_row;
+        jCol[idx] = idx_xu_[nsteps] + idx_col;
+        idx++;
+      }
+    }
+    ALIBENCH_ASSERT_PRETTY(
+        int(idx) == nele_hess,
+        "Number of Hessian elements set ({:d}) does not fit nnz_h_lag ({:d})",
+        int(idx), nele_hess);
+  } else {
+    double *ptr = values;
+    auto &sds = problem_data_.stage_data;
+    for (std::size_t i = 0; i < nsteps; i++) {
+      const auto &stage = problem_.stages_[i];
+      const int ndx = stage->ndx1();
+      const int nu = stage->nu();
+      MatMap Hess{ptr, ndx + nu, ndx + nu};
+      Hess = obj_factor * sds[i]->cost_data->hess_;
+      ptr += (ndx + nu) * (ndx + nu);
+
+      if (stage->numConstraints() > 0) {
+        Hess += sds[i]->constraint_data[0]->vhp_buffer_;
+      }
+    }
+
+    {
+      // terminal
+      auto &tcd = problem_data_.term_cost_data;
+      auto &tcsd = problem_data_.term_cstr_data;
+      const int ndx = tcd->ndx_;
+      const int nu = tcd->nu_;
+      MatMap Hess{ptr, ndx + nu, ndx + nu};
+      Hess = obj_factor * tcd->hess_;
+      if (!tcsd.empty()) {
+        Hess += tcsd[0]->vhp_buffer_;
+      }
+    }
   }
   return true;
 }
 
 void TrajOptIpoptNLP::finalize_solution(
-    SolverReturn status, Index n, const double *x, const double *z_L,
+    SolverReturn status, Index n, const double *traj, const double *z_L,
     const double *z_U, Index m, const double *g, const double *lambda,
     double obj_value, const IpoptData *ip_data,
-    Ipopt::IpoptCalculatedQuantities *ip_cq) {}
+    Ipopt::IpoptCalculatedQuantities *ip_cq) {
+  fmt::println("Optimization finished! Status {:d}", int(status));
+  fmt::println("Objective value: {:.3e}", obj_value);
+}
 
 } // namespace aligator_bench

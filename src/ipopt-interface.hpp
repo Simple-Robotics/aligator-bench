@@ -32,7 +32,7 @@ public:
   using SolverReturn = Ipopt::SolverReturn;
   using IpoptData = Ipopt::IpoptData;
 
-  TrajOptIpoptNLP(const TrajOptProblem &problem);
+  TrajOptIpoptNLP(const TrajOptProblem &problem, bool verbose = false);
 
   bool get_nlp_info(Index &n, Index &m, Index &nnz_jac_g, Index &nnz_h_lag,
                     IndexStyleEnum &index_style) override;
@@ -57,6 +57,10 @@ public:
 
   bool eval_jac_g(Index n, const double *x, bool new_x, Index m, Index nele_jac,
                   Index *iRow, Index *jCol, double *values) override;
+
+  bool eval_h(Index n, const double *x, bool new_x, double obj_factor, Index m,
+              const double *lambda, bool new_lambda, Index nele_hess,
+              Index *iRow, Index *jCol, double *values) override;
 
   void finalize_solution(SolverReturn status, Index n, const double *x,
                          const double *z_L, const double *z_U, Index m,
