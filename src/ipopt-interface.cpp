@@ -489,7 +489,7 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       // add (xk, uk) sparsity pattern
       // just the lower triangular part.
       for (int idx_row = 0; idx_row < ndxi + nui; idx_row++) {
-        for (int idx_col = 0; idx_col < idx_row; idx_col++) {
+        for (int idx_col = 0; idx_col <= idx_row; idx_col++) {
           iRow[idx] = idx_xu_[i] + idx_row;
           jCol[idx] = idx_xu_[i] + idx_col;
           idx++;
@@ -498,7 +498,7 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
     }
     const int ndxN = problem_.term_cost_->ndx();
     for (int idx_row = 0; idx_row < ndxN; idx_row++) {
-      for (int idx_col = 0; idx_col < idx_row; idx_col++) {
+      for (int idx_col = 0; idx_col <= idx_row; idx_col++) {
         iRow[idx] = idx_xu_[nsteps] + idx_row;
         jCol[idx] = idx_xu_[nsteps] + idx_col;
         idx++;
