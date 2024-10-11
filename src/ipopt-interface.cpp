@@ -230,6 +230,9 @@ void TrajOptIpoptNLP::update_internal_primal_variables(const double *traj) {
     xs_[i] = ConstVecMap{traj + sidx, ndxi};
     us_[i] = ConstVecMap{traj + sidx + ndxi, nui};
   }
+
+  const int ndxN = problem_.term_cost_->ndx();
+  xs_[nsteps] = ConstVecMap{traj + idx_xu_[nsteps], ndxN};
 }
 
 void TrajOptIpoptNLP::update_internal_dual_variables(const double *lambda) {
