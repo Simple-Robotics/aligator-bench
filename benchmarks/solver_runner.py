@@ -1,6 +1,7 @@
 import aligator
 from aligator import SolverProxDDP, TrajOptProblem
 from enum import Enum, auto
+from dataclasses import dataclass
 
 
 class Status(Enum):
@@ -9,17 +10,13 @@ class Status(Enum):
     ERROR = auto()
 
 
+@dataclass
 class Result:
-    def __init__(self, status: Status, traj_cost, niter):
-        self.status = status
-        self.traj_cost = traj_cost
-        self.niter = niter
-
-    def todict(self):
-        return {"status": self.status, "traj_cost": self.traj_cost, "niter": self.niter}
-
-    def __str__(self):
-        return f"Result {self.todict()}"
+    status: Status
+    traj_cost: float
+    niter: int
+    prim_feas: float
+    dual_feas: float
 
 
 class ProxDdpRunner:
@@ -51,7 +48,17 @@ class ProxDdpRunner:
         except Exception:
             status = Status.ERROR
         self._solver = solver
-        return Result(status, results.traj_cost, results.num_iters)
+        return Result(
+            status,
+            results.traj_cost,
+            results.num_iters,
+            results.primal_infeas,
+            results.dual_infeas,
+        )
+
+    @staticmethod
+    def name():
+        return "ProxDDP"
 
     @property
     def solver(self):
@@ -62,6 +69,10 @@ class AltroRunner:
     def __init__(self, settings={}):
         self._solver = None
         self._settings = settings
+
+    @staticmethod
+    def name():
+        return "ALTRO"
 
     def solve(self, example, tol: float):
         from aligator_bench_pywrap import (
@@ -79,7 +90,9 @@ class AltroRunner:
         altro_opts = altro_solver.GetOptions()
         altro_opts.tol_cost = 1e-16
         altro_opts.tol_primal_feasibility = tol
-        altro_opts.tol_stationarity = tol
+        # this is actually both the outer loop AND
+        # final tolerance...
+        # altro_opts.tol_stationarity = tol
         altro_opts.iterations_max = 400
         altro_opts.use_backtracking_linesearch = True
 
@@ -88,6 +101,8 @@ class AltroRunner:
                 altro_opts.verbose = AltroVerbosity.Inner
             if param == "max_iters":
                 altro_opts.iterations_max = value
+            if param == "tol_stationarity":
+                altro_opts.tol_stationarity = value
 
         solver_code = altro_solver.Solve()
         match solver_code:
@@ -99,7 +114,13 @@ class AltroRunner:
                 status = Status.ERROR
         print("Solver code:", solver_code)
         self._solver = altro_solver
-        return Result(status, altro_solver.CalcCost(), altro_solver.GetIterations())
+        return Result(
+            status,
+            altro_solver.CalcCost(),
+            altro_solver.GetIterations(),
+            altro_solver.GetPrimalFeasibility(),
+            altro_solver.GetStationarity(),
+        )
 
     @property
     def solver(self):
