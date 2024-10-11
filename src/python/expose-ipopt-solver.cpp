@@ -14,6 +14,7 @@ void exposeIpoptSolver() {
       .def(bp::init<bool>(("self"_a, "rethrow_nonipopt_exceptions"_a = false)))
       .def("setup", &SolverIpopt::setup,
            ("self"_a, "problem", "verbose"_a = false))
+      .def("solve", &SolverIpopt::solve, ("self"_a))
       ._set_opt(const std::string &)
       ._set_opt(int)
       ._set_opt(double)
