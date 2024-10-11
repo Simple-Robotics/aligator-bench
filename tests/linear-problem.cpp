@@ -12,12 +12,12 @@ auto createLinearProblem(const size_t horizon, const int nx, const int nu,
   using aligator::QuadraticCostTpl;
   using aligator::dynamics::LinearDiscreteDynamicsTpl;
   MatrixXs w_x{nx, nx};
-  w_x.setZero();
+  w_x.setIdentity();
   MatrixXs w_u{nu, nu};
-  w_u.setZero();
+  w_u.setIdentity();
 
-  MatrixXs A = MatrixXs::Random(nx, nx);
-  MatrixXs B = MatrixXs::Random(nx, nu);
+  MatrixXs A = MatrixXs::Ones(nx, nx);
+  MatrixXs B = MatrixXs::Identity(nx, nu);
 
   QuadraticCostTpl<double> cost{w_x, w_u};
   LinearDiscreteDynamicsTpl<double> ddyn{A, B, VectorXs::Zero(nx)};
