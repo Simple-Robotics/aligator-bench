@@ -24,6 +24,7 @@ Ipopt::ApplicationReturnStatus SolverIpopt::setup(const TrajOptProblem &problem,
   setOption("jacobian_approximation", "exact");
   setOption("print_level", 4);
   setOption("linear_solver", "mumps");
+  setOption("max_iter", 300);
 
   return status;
 }
