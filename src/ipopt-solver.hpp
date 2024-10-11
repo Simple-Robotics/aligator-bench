@@ -14,6 +14,7 @@ class IpoptApplication;
 
 namespace aligator_bench {
 using alcontext::TrajOptProblem;
+using alcontext::VectorOfVectors;
 class TrajOptIpoptNLP;
 
 struct SolverIpopt {
@@ -24,6 +25,11 @@ struct SolverIpopt {
   void setOption(const std::string &name, const std::string &value);
   void setOption(const std::string &name, int value);
   void setOption(const std::string &name, double value);
+
+  const VectorOfVectors &xs() const;
+  const VectorOfVectors &us() const;
+  const VectorOfVectors &lams() const;
+  const VectorOfVectors &vs() const;
 
   Ipopt::ApplicationReturnStatus solve();
 

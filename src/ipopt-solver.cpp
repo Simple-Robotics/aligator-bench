@@ -47,4 +47,24 @@ Ipopt::ApplicationReturnStatus SolverIpopt::solve() {
   return status;
 }
 
+const VectorOfVectors &SolverIpopt::xs() const {
+  auto &pi = static_cast<TrajOptIpoptNLP &>(*adapter_);
+  return pi.xs_;
+}
+
+const VectorOfVectors &SolverIpopt::us() const {
+  auto &pi = static_cast<TrajOptIpoptNLP &>(*adapter_);
+  return pi.us_;
+}
+
+const VectorOfVectors &SolverIpopt::lams() const {
+  auto &pi = static_cast<TrajOptIpoptNLP &>(*adapter_);
+  return pi.lams_;
+}
+
+const VectorOfVectors &SolverIpopt::vs() const {
+  auto &pi = static_cast<TrajOptIpoptNLP &>(*adapter_);
+  return pi.vs_;
+}
+
 } // namespace aligator_bench
