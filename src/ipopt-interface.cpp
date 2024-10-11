@@ -522,10 +522,14 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       const int nu = stage->nu();
 
       auto &H = sds[i]->cost_data->hess_;
+      assert(H.cols() == ndx + nu);
+      assert(H.rows() == ndx + nu);
       lowTriangAddFromEigen(ptr, H, obj_factor);
 
       if (stage->numConstraints() > 0) {
         auto &H = sds[i]->constraint_data[0]->vhp_buffer_;
+        assert(H.cols() == ndx + nu);
+        assert(H.rows() == ndx + nu);
         lowTriangAddFromEigen(ptr, H, 1.);
       }
       ptr += lowTriangSize(ndx + nu);
@@ -536,14 +540,19 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       auto &tcd = problem_data_.term_cost_data;
       auto &tcsd = problem_data_.term_cstr_data;
       const int ndx = tcd->ndx_;
-      const int nu = tcd->nu_;
-      assert(tcd->hess_.cols() == ndx + nu);
-      assert(tcd->hess_.rows() == ndx + nu);
-      lowTriangAddFromEigen(ptr, tcd->hess_, obj_factor);
+      assert(tcd->Lxx_.cols() == ndx);
+      assert(tcd->Lxx_.rows() == ndx);
+      lowTriangAddFromEigen(ptr, tcd->Lxx_, obj_factor);
       if (!tcsd.empty()) {
-        lowTriangAddFromEigen(ptr, tcsd[0]->vhp_buffer_, 1.0);
+        lowTriangAddFromEigen(ptr, tcsd[0]->Hxx_, 1.0);
       }
+      ptr += lowTriangSize(ndx);
     }
+    const auto d = std::distance(values, ptr);
+    ALIBENCH_ASSERT_PRETTY(d == nele_hess,
+                           "Final pointer is not the right distance ({:d}, "
+                           "expected: {:d}) from the initial one.",
+                           d, nele_hess)
   }
   return true;
 }
