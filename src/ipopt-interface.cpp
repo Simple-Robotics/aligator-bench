@@ -268,6 +268,7 @@ bool TrajOptIpoptNLP::eval_f(Index n, const double *traj, bool new_x,
   if (new_x) {
     this->update_internal_primal_variables(traj);
     problem_.evaluate(xs_, us_, problem_data_);
+    problem_.computeDerivatives(xs_, us_, problem_data_);
   }
   obj_value = problem_data_.cost_;
   return true;
@@ -307,6 +308,7 @@ bool TrajOptIpoptNLP::eval_g(Index, const double *traj, bool new_x, Index,
   if (new_x) {
     this->update_internal_primal_variables(traj);
     problem_.evaluate(xs_, us_, problem_data_);
+    problem_.computeDerivatives(xs_, us_, problem_data_);
   }
 
   {
