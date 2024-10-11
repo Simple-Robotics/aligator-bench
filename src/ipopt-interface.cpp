@@ -356,7 +356,9 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
 
   if (values == NULL) {
     std::size_t idx = 0;
-    // cursor corresponding to the current constraint
+
+    // NOTE: The indices will be filled up in column-major order (inner loop
+    // over rows).
 
     // initial condition
     {
@@ -364,8 +366,8 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       auto &init_cond = problem_.init_constraint_;
       const int ndx = init_cond->ndx1;
       const int nr = init_cond->nr;
-      for (int idx_row = 0; idx_row < nr; idx_row++) {
-        for (int idx_col = 0; idx_col < ndx; idx_col++) {
+      for (int idx_col = 0; idx_col < ndx; idx_col++) {
+        for (int idx_row = 0; idx_row < nr; idx_row++) {
           iRow[idx] = cid + idx_row;
           jCol[idx] = idx_col;
           idx++;
@@ -381,8 +383,8 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       const int nc = stage->nc();
       int cid = idx_constraints_[i + 1];
 
-      for (int idx_row = 0; idx_row < ndx2; idx_row++) {
-        for (int idx_col = 0; idx_col < ndx + nu + ndx2; idx_col++) {
+      for (int idx_col = 0; idx_col < ndx + nu + ndx2; idx_col++) {
+        for (int idx_row = 0; idx_row < ndx2; idx_row++) {
           iRow[idx] = cid + idx_row;
           jCol[idx] = idx_xu_[i] + idx_col;
           idx++;
@@ -391,9 +393,9 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
 
       cid += ndx2;
       // nc rows
-      for (int idx_row = 0; idx_row < nc; idx_row++) {
-        // ndx + nu cols
-        for (int idx_col = 0; idx_col < ndx + nu; idx_col++) {
+      // ndx + nu cols
+      for (int idx_col = 0; idx_col < ndx + nu; idx_col++) {
+        for (int idx_row = 0; idx_row < nc; idx_row++) {
           iRow[idx] = cid + idx_row;
           jCol[idx] = idx_xu_[i] + idx_col;
           idx++;
@@ -406,8 +408,8 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       const int nr = int(problem_.term_cstrs_.totalDim());
       const int ndx = problem_.term_cost_->ndx();
       const int cid = idx_constraints_[nsteps + 1];
-      for (int idx_row = 0; idx_row < nr; idx_row++) {
-        for (int idx_col = 0; idx_col < ndx; idx_col++) {
+      for (int idx_col = 0; idx_col < ndx; idx_col++) {
+        for (int idx_row = 0; idx_row < nr; idx_row++) {
           iRow[idx] = cid + idx_row;
           jCol[idx] = idx_xu_[nsteps] + idx_col;
           idx++;
@@ -420,6 +422,8 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
         "Number of Jacobian elements set ({:d}) does not fit nnz_jac_g ({:d})",
         int(idx), nele_jac);
   } else {
+    assert(iRow == NULL);
+    assert(jCol == NULL);
     auto &sds = problem_data_.stage_data;
     // increment this mf
     double *ptr = values;
@@ -494,8 +498,8 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       const int nui = stage->nu();
       // add (xk, uk) sparsity pattern
       // just the lower triangular part.
-      for (int idx_row = 0; idx_row < ndxi + nui; idx_row++) {
-        for (int idx_col = 0; idx_col <= idx_row; idx_col++) {
+      for (int idx_col = 0; idx_col < ndxi + nui; idx_col++) {
+        for (int idx_row = idx_col; idx_row < ndxi + nui; idx_row++) {
           iRow[idx] = idx_xu_[i] + idx_row;
           jCol[idx] = idx_xu_[i] + idx_col;
           idx++;
@@ -503,8 +507,8 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       }
     }
     const int ndxN = problem_.term_cost_->ndx();
-    for (int idx_row = 0; idx_row < ndxN; idx_row++) {
-      for (int idx_col = 0; idx_col <= idx_row; idx_col++) {
+    for (int idx_col = 0; idx_col <= ndxN; idx_col++) {
+      for (int idx_row = idx_col; idx_row < ndxN; idx_row++) {
         iRow[idx] = idx_xu_[nsteps] + idx_row;
         jCol[idx] = idx_xu_[nsteps] + idx_col;
         idx++;
