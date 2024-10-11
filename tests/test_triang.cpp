@@ -29,7 +29,7 @@ TEST_P(Triang, addEigen) {
   lowTriangSetZero(n, x.data());
   MatrixXs a = MatrixXs::Ones(n, n);
   lowTriangAddFromEigen(x.data(), a, 2.0);
-  lowTriangCoeff(n, x.data(), 2, 0) = -33;
+  lowTriangCoeff(n, x.data(), 1, 0) = -33;
   // fmt::println("x:  {}", x.transpose());
 
   MatrixXs b(n, n);
@@ -44,8 +44,9 @@ TEST_P(Triang, setCoeff) {
   lowTriangSetZero(n, x.data());
   lowTriangCoeff(n, x.data(), 0, 0) = 1;
   lowTriangCoeff(n, x.data(), 1, 0) = 2.2;
-  lowTriangCoeff(n, x.data(), 2, 0) = -2.2;
   lowTriangCoeff(n, x.data(), 1, 1) = 42.;
+  if (n > 2)
+    lowTriangCoeff(n, x.data(), 2, 0) = -2.2;
   if (n > 3) {
     const int mid = n / 2;
     lowTriangCoeff(n, x.data(), 2, 2) = 13.;
@@ -58,4 +59,4 @@ TEST_P(Triang, setCoeff) {
   fmt::println("b:\n{}\n", b);
 }
 
-INSTANTIATE_TEST_SUITE_P(setZero, Triang, testing::Values(3, 5, 10, 20));
+INSTANTIATE_TEST_SUITE_P(setZero, Triang, testing::Values(2, 3, 5, 10, 20));
