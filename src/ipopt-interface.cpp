@@ -565,12 +565,20 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
 }
 
 void TrajOptIpoptNLP::finalize_solution(
-    SolverReturn status, Index n, const double *traj, const double *z_L,
-    const double *z_U, Index m, const double *g, const double *lambda,
+    SolverReturn status, Index, const double *traj, const double *z_L,
+    const double *z_U, Index, const double *g, const double *lambda,
     double obj_value, const IpoptData *ip_data,
     Ipopt::IpoptCalculatedQuantities *ip_cq) {
-  fmt::println("Optimization finished! Status {:d}", int(status));
-  fmt::println("Objective value: {:.3e}", obj_value);
+  (void)z_L;
+  (void)z_U;
+  (void)g;
+  (void)ip_data;
+  (void)ip_cq;
+  fmt::println("Optimization finished! Solver return status {:d}\n"
+               "Objective value: {:.3e}",
+               int(status), obj_value);
+  update_internal_primal_variables(traj);
+  update_internal_dual_variables(lambda);
 }
 
 } // namespace aligator_bench
