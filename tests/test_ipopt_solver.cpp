@@ -3,50 +3,11 @@
 #include "linear-problem.hpp"
 #include "ipopt-interface.hpp"
 #include "ipopt-solver.hpp"
-#include "triang_util.hpp"
 #include <IpIpoptApplication.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 #include <proxsuite-nlp/fmt-eigen.hpp>
 
 using namespace aligator_bench;
-
-GTEST_TEST(Triang, Size) {
-  const long n = 4;
-  EXPECT_EQ(lowTriangSize(n), 10);
-}
-
-GTEST_TEST(Triang, setZero) {
-  VectorXs x;
-  x.setOnes(10);
-  lowTriangSetZero(4, x.data());
-  fmt::println("set to zero: {}", fmt::streamed(x.transpose()));
-  EXPECT_TRUE(x.isZero());
-}
-
-GTEST_TEST(Triang, addEigen) {
-  const long n = 3;
-  VectorXs x;
-  x.resize(lowTriangSize(n));
-  lowTriangSetZero(n, x.data());
-  MatrixXs a = MatrixXs::Ones(n, n);
-  lowTriangAddFromEigen(x.data(), a, 2.0);
-  lowTriangCoeff(n, x.data(), 2, 0) = -33;
-  fmt::println("x:  {}", x.transpose());
-
-  MatrixXs b(n, n);
-  lowTriangToEigen(n, x.data(), b);
-  fmt::println("b:\n{}", b);
-}
-
-GTEST_TEST(Triang, setCoeff) {
-  const long n = 3;
-  VectorXs x;
-  x.resize(lowTriangSize(n));
-  lowTriangSetZero(n, x.data());
-  lowTriangCoeff(n, x.data(), 1, 1) = 42.;
-  lowTriangCoeff(n, x.data(), 2, 2) = 13.;
-  fmt::println("x:  {}", fmt::streamed(x.transpose()));
-}
 
 class AdapterTest : public testing::Test {
 public:

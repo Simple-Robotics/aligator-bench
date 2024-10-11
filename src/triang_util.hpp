@@ -31,6 +31,9 @@ inline void lowTriangAddFromEigen(double *dst,
 
 inline void lowTriangToEigen(long n, double *src,
                              Eigen::Ref<Eigen::MatrixXd> dst) {
+  assert(n == dst.rows());
+  assert(n == dst.cols());
+  dst.setZero();
   for (long i = 0; i < n; i++)
     for (long j = 0; j <= i; j++)
       dst(i, j) = lowTriangCoeff(n, src, i, j);
