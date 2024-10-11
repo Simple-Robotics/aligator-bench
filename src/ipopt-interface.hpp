@@ -71,11 +71,13 @@ public:
   const TrajOptProblem &problem_;
   TrajOptData problem_data_;
 
-private:
   std::vector<VectorXs> xs_;
   std::vector<VectorXs> us_;
   std::vector<VectorXs> lams_;
   std::vector<VectorXs> vs_;
+
+private:
+  bool verbose_;
   /// Total number of primal variables in the problem.
   int nvars_;
   /// idx_xu_[i] is the start index of \f$(x_i, u_i) \f$ in the interleaved

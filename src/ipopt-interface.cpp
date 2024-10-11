@@ -14,7 +14,8 @@
 namespace aligator_bench {
 
 TrajOptIpoptNLP::TrajOptIpoptNLP(const TrajOptProblem &problem, bool verbose)
-    : Ipopt::TNLP(), problem_(problem), problem_data_(problem) {
+    : Ipopt::TNLP(), problem_(problem), problem_data_(problem),
+      verbose_(verbose) {
   const size_t nsteps = problem_.numSteps();
   xs_.resize(nsteps + 1);
   us_.resize(nsteps);
@@ -62,7 +63,7 @@ TrajOptIpoptNLP::TrajOptIpoptNLP(const TrajOptProblem &problem, bool verbose)
     nconstraints_ += problem_.term_cstrs_.totalDim();
   }
 
-  if (verbose) {
+  if (verbose_) {
     const size_t num_digits =
         std::max(size_t(std::log10(nsteps)) + 1, std::size("Index"));
     const size_t ndigits_vars =
