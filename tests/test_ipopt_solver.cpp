@@ -148,19 +148,6 @@ TEST_P(SolverTestLinearProb, Initialize) {
   EXPECT_EQ(init_status, Ipopt::Solve_Succeeded);
 }
 
-TEST_P(SolverTestLinearProb, nlp_info) {
-  int n, m, nnz_jac_g, nnz_h_lag;
-  Ipopt::TNLP::IndexStyleEnum index_style;
-  bool ret =
-      solver.adapter_->get_nlp_info(n, m, nnz_jac_g, nnz_h_lag, index_style);
-  EXPECT_TRUE(ret);
-  fmt::println("nvars:\t\t{:d}\n"
-               "nconstraints:\t{:d}\n"
-               "nnz_jac_g:\t{:d}\n"
-               "nnz_h_lag:\t{:d}",
-               n, m, nnz_jac_g, nnz_h_lag);
-}
-
 TEST_P(SolverTestLinearProb, setTol) {
   solver.setOption("tol", 3.14e-6);
   std::string outfile = "ipopt.out";
