@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.hpp"
+#include <Eigen/Core>
 
 namespace aligator_bench {
 
@@ -19,7 +19,8 @@ inline void lowTriangSetZero(long n, double *dst) {
   std::fill_n(dst, lowTriangSize(n), 0.);
 }
 
-inline void lowTriangAddFromEigen(double *dst, Eigen::Ref<const MatrixXs> src,
+inline void lowTriangAddFromEigen(double *dst,
+                                  Eigen::Ref<const Eigen::MatrixXd> src,
                                   double c) {
   Eigen::Index n = src.rows();
   assert(n == src.cols());
@@ -28,7 +29,8 @@ inline void lowTriangAddFromEigen(double *dst, Eigen::Ref<const MatrixXs> src,
       lowTriangCoeff(n, dst, i, j) += c * src(i, j);
 }
 
-inline void lowTriangToEigen(long n, double *src, Eigen::Ref<MatrixXs> dst) {
+inline void lowTriangToEigen(long n, double *src,
+                             Eigen::Ref<Eigen::MatrixXd> dst) {
   for (long i = 0; i < n; i++)
     for (long j = 0; j <= i; j++)
       dst(i, j) = lowTriangCoeff(n, src, i, j);

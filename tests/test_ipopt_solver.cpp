@@ -122,7 +122,9 @@ GTEST_TEST_F(SolverTest, Initialize) {
 GTEST_TEST_F(SolverTest, nlp_info) {
   int n, m, nnz_jac_g, nnz_h_lag;
   Ipopt::TNLP::IndexStyleEnum index_style;
-  solver.adapter_->get_nlp_info(n, m, nnz_jac_g, nnz_h_lag, index_style);
+  bool ret =
+      solver.adapter_->get_nlp_info(n, m, nnz_jac_g, nnz_h_lag, index_style);
+  EXPECT_TRUE(ret);
   fmt::println("nvars:\t\t{:d}\n"
                "nconstraints:\t{:d}\n"
                "nnz_jac_g:\t{:d}\n"
