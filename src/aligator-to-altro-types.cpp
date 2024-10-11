@@ -95,15 +95,15 @@ aligatorExpDynamicsToAltro(xyz::polymorphic<DynamicsModel> dynamics) {
 using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
 using NegativeOrthant = proxsuite::nlp::NegativeOrthantTpl<double>;
 
-boost::unordered_map<const std::type_info *, altro::ConstraintType>
+boost::unordered_map<std::type_index, altro::ConstraintType>
     __aligatorConstraintRttiToAltro = {
-        {&typeid(ZeroSet), altro::ConstraintType::EQUALITY},
-        {&typeid(NegativeOrthant), altro::ConstraintType::INEQUALITY}};
+        {typeid(ZeroSet), altro::ConstraintType::EQUALITY},
+        {typeid(NegativeOrthant), altro::ConstraintType::INEQUALITY}};
 
 // Return Rtti
 altro::ConstraintType
 aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint) {
-  return __aligatorConstraintRttiToAltro.at(&typeid(constraint));
+  return __aligatorConstraintRttiToAltro.at(typeid(constraint));
 }
 
 altroConstraint aligatorConstraintToAltro(int nx,
