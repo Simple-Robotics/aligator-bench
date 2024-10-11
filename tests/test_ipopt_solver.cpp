@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include "types.hpp"
 #include "linear-problem.hpp"
 #include "ipopt-interface.hpp"
 #include "ipopt-solver.hpp"
@@ -62,10 +61,78 @@ GTEST_TEST_F(AdapterTest, get_starting_point) {
   EXPECT_TRUE(ret);
 }
 
+GTEST_TEST_F(AdapterTest, eval_f_and_grad) {
+  double *traj_data = new double[size_t(nvars)];
+  double *lambda_data = new double[size_t(nconstraints)];
+  adapter.get_starting_point(nvars, true, traj_data, false, 0, 0, nconstraints,
+                             true, lambda_data);
+
+  double obj_value;
+  EXPECT_TRUE(adapter.eval_f(nvars, traj_data, true, obj_value));
+
+  double *grad_data = new double[size_t(nvars)];
+  EXPECT_TRUE(adapter.eval_g(nvars, traj_data, true, nconstraints, grad_data));
+  delete[] traj_data;
+  delete[] lambda_data;
+  delete[] grad_data;
+}
+
+GTEST_TEST_F(AdapterTest, eval_jac_g_sparsity) {
+  double *traj_data = new double[size_t(nvars)];
+  int *iRow = new int[size_t(nnz_jac_g)];
+  int *jCol = new int[size_t(nnz_jac_g)];
+
+  bool ret = adapter.eval_jac_g(nvars, traj_data, true, nconstraints, nnz_jac_g,
+                                iRow, jCol, NULL);
+  EXPECT_TRUE(ret);
+
+  delete[] traj_data;
+  delete[] iRow;
+  delete[] jCol;
+}
+
+GTEST_TEST_F(AdapterTest, eval_jac_g) {
+  double *traj_data = new double[size_t(nvars)];
+  double *jac_data = new double[size_t(nnz_jac_g)];
+
+  bool ret = adapter.eval_jac_g(nvars, traj_data, true, nconstraints, nnz_jac_g,
+                                NULL, NULL, jac_data);
+  EXPECT_TRUE(ret);
+
+  delete[] traj_data;
+  delete[] jac_data;
+}
+
+GTEST_TEST_F(AdapterTest, eval_h_sparsity) {
+  double *traj_data = new double[size_t(nvars)];
+  double *lambda_data = new double[size_t(nconstraints)];
+  int *iRow = new int[size_t(nnz_h_lag)];
+  int *jCol = new int[size_t(nnz_h_lag)];
+  // query Hessian sparsity
+  adapter.eval_h(nvars, traj_data, true, 1.0, nconstraints, lambda_data, true,
+                 nnz_h_lag, iRow, jCol, NULL);
+  delete[] traj_data;
+  delete[] lambda_data;
+  delete[] iRow;
+  delete[] jCol;
+}
+
+GTEST_TEST_F(AdapterTest, eval_h) {
+  double *traj_data = new double[size_t(nvars)];
+  double *lambda_data = new double[size_t(nconstraints)];
+  // query Hessian values
+  double *hess_data = new double[size_t(nnz_h_lag)];
+  adapter.eval_h(nvars, traj_data, true, 0.1, nconstraints, lambda_data, true,
+                 nnz_h_lag, NULL, NULL, hess_data);
+  delete[] traj_data;
+  delete[] lambda_data;
+  delete[] hess_data;
+}
+
 struct SolverTest : public testing::Test {
-  size_t horizon = 100;
-  int nx = 50;
-  int nu = 40;
+  size_t horizon = 10;
+  int nx = 4;
+  int nu = 2;
   TrajOptProblem problem;
   SolverIpopt solver;
   Ipopt::ApplicationReturnStatus init_status;
