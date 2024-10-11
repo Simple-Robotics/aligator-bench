@@ -6,6 +6,9 @@
 #include <aligator/core/stage-data.hpp>
 #include <aligator/core/cost-abstract.hpp>
 
+#include <boost/unordered_map.hpp>
+#include <proxsuite-nlp/modelling/constraints.hpp>
+
 #define ALIBENCH_ASSERT_PRETTY(expr, ...)                                      \
   if (!(expr)) {                                                               \
     ALIGATOR_RUNTIME_ERROR(__VA_ARGS__);                                       \
@@ -133,6 +136,22 @@ bool TrajOptIpoptNLP::get_nlp_info(Index &n, Index &m, Index &nnz_jac_g,
   m = nconstraints_;
   return true;
 }
+
+void bounds_equality(int m, double *g_l, double *g_u) {}
+void bounds_negative(int m, double *g_l, double *g_u) {}
+void bounds_box(int m, double *g_l, double *g_u) {}
+
+typedef void (*bounds_dispatch_t)(int, double *, double *);
+
+using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
+using NegativeOrthant = proxsuite::nlp::NegativeOrthantTpl<double>;
+using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
+boost::unordered_map<std::type_index, bounds_dispatch_t>
+    __aligatorConstraintDispatch{
+        {typeid(ZeroSet), bounds_equality},
+        {typeid(NegativeOrthant), bounds_negative},
+        {typeid(BoxConstraint), bounds_box},
+    };
 
 bool TrajOptIpoptNLP::get_bounds_info(Index n, double *x_l, double *x_u,
                                       Index m, double *g_l, double *g_u) {
