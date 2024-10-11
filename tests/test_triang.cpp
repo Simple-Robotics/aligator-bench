@@ -59,4 +59,4 @@ TEST_P(Triang, setCoeff) {
   fmt::println("b:\n{}\n", b);
 }
 
-INSTANTIATE_TEST_SUITE_P(setZero, Triang, testing::Values(2, 3, 5, 10, 20));
+INSTANTIATE_TEST_SUITE_P(VaryingDims, Triang, testing::Values(2, 3, 5, 10, 20));

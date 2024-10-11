@@ -129,25 +129,26 @@ GTEST_TEST_F(AdapterTest, eval_h) {
   delete[] hess_data;
 }
 
-struct SolverTest : public testing::Test {
-  size_t horizon = 10;
-  int nx = 4;
-  int nu = 2;
+struct SolverTestLinearProb : public testing::TestWithParam<size_t> {
+  size_t horizon;
+  int nx = 20;
+  int nu = 12;
   TrajOptProblem problem;
   SolverIpopt solver;
   Ipopt::ApplicationReturnStatus init_status;
 
-  SolverTest()
-      : problem{createLinearProblem(horizon, nx, nu, false)}, solver{true} {}
+  SolverTestLinearProb()
+      : horizon(GetParam()),
+        problem{createLinearProblem(horizon, nx, nu, true)}, solver{true} {}
 
   void SetUp() override { init_status = solver.setup(problem); }
 };
 
-GTEST_TEST_F(SolverTest, Initialize) {
+TEST_P(SolverTestLinearProb, Initialize) {
   EXPECT_EQ(init_status, Ipopt::Solve_Succeeded);
 }
 
-GTEST_TEST_F(SolverTest, nlp_info) {
+TEST_P(SolverTestLinearProb, nlp_info) {
   int n, m, nnz_jac_g, nnz_h_lag;
   Ipopt::TNLP::IndexStyleEnum index_style;
   bool ret =
@@ -160,7 +161,7 @@ GTEST_TEST_F(SolverTest, nlp_info) {
                n, m, nnz_jac_g, nnz_h_lag);
 }
 
-GTEST_TEST_F(SolverTest, setTol) {
+TEST_P(SolverTestLinearProb, setTol) {
   solver.setOption("tol", 3.14e-6);
   std::string outfile = "ipopt.out";
   solver.setOption("output_file", outfile);
@@ -170,7 +171,10 @@ GTEST_TEST_F(SolverTest, setTol) {
   fmt::println("{}", optlist);
 }
 
-GTEST_TEST_F(SolverTest, solve) {
+TEST_P(SolverTestLinearProb, solve) {
   auto status = solver.solve();
   EXPECT_EQ(status, Ipopt::Solve_Succeeded);
 }
+
+INSTANTIATE_TEST_SUITE_P(Horionz, SolverTestLinearProb,
+                         testing::Values(1, 10, 50, 100));
