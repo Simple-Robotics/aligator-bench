@@ -28,8 +28,7 @@ inline void lowTriangAddFromEigen(double *dst, Eigen::Ref<const MatrixXs> src,
       lowTriangCoeff(n, dst, i, j) += c * src(i, j);
 }
 
-inline void lowTriangToEigen(long n, double *src, MatrixXs &dst) {
-  dst.conservativeResize(n, n);
+inline void lowTriangToEigen(long n, double *src, Eigen::Ref<MatrixXs> dst) {
   for (long i = 0; i < n; i++)
     for (long j = 0; j <= i; j++)
       dst(i, j) = lowTriangCoeff(n, src, i, j);

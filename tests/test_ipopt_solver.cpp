@@ -33,7 +33,7 @@ GTEST_TEST(Triang, addEigen) {
   lowTriangCoeff(n, x.data(), 2, 0) = -33;
   fmt::println("x:  {}", x.transpose());
 
-  MatrixXs b;
+  MatrixXs b(n, n);
   lowTriangToEigen(n, x.data(), b);
   fmt::println("b:\n{}", b);
 }
