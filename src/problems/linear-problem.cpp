@@ -6,8 +6,10 @@
 
 #include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
 
-auto createLinearProblem(const size_t horizon, const int nx, const int nu,
-                         bool terminal) -> TrajOptProblem {
+alcontext::TrajOptProblem createLinearProblem(const size_t horizon,
+                                              const int nx, const int nu,
+                                              bool terminal) {
+  using namespace alcontext;
   using aligator::LinearFunctionTpl;
   using aligator::QuadraticCostTpl;
   using aligator::dynamics::LinearDiscreteDynamicsTpl;

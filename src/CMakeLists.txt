@@ -19,5 +19,6 @@ target_link_libraries(
   PUBLIC aligator::aligator altro::altro Ipopt::Ipopt
 )
 
+add_subdirectory(problems)
 add_subdirectory(robots)
 add_subdirectory(python)
