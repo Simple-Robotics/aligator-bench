@@ -4,6 +4,7 @@
 #include <aligator/core/traj-opt-problem.hpp>
 
 #include <IpIpoptApplication.hpp>
+#include <IpReturnCodes.hpp>
 
 void exposeIpoptSolver() {
   using namespace aligator_bench;
@@ -26,6 +27,34 @@ void exposeIpoptSolver() {
       ._c(us)
       ._c(lams)
       ._c(vs)
+#undef _c
+      ;
+
+  bp::enum_<Ipopt::ApplicationReturnStatus>("IpoptApplicationReturnStatus")
+#define _c(name) value(#name, Ipopt::ApplicationReturnStatus::name)
+      ._c(Solve_Succeeded)
+      ._c(Solved_To_Acceptable_Level)
+      ._c(Infeasible_Problem_Detected)
+      ._c(Search_Direction_Becomes_Too_Small)
+      ._c(Diverging_Iterates)
+      ._c(User_Requested_Stop)
+      ._c(Feasible_Point_Found)
+      //
+      ._c(Maximum_Iterations_Exceeded)
+      ._c(Restoration_Failed)
+      ._c(Error_In_Step_Computation)
+      ._c(Maximum_CpuTime_Exceeded)
+      ._c(Maximum_WallTime_Exceeded)
+      //
+      ._c(Not_Enough_Degrees_Of_Freedom)
+      ._c(Invalid_Problem_Definition)
+      ._c(Invalid_Option)
+      ._c(Invalid_Number_Detected)
+      //
+      ._c(Unrecoverable_Exception)
+      ._c(NonIpopt_Exception_Thrown)
+      ._c(Insufficient_Memory)
+      ._c(Internal_Error)
 #undef _c
       ;
 }
