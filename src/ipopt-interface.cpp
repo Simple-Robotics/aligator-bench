@@ -445,9 +445,8 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
     assert(iRow == NULL);
     assert(jCol == NULL);
     auto &sds = problem_data_.stage_data;
-    // increment this mf
     double *ptr = values;
-    // cursor corresponding to the current constraint
+    std::fill_n(ptr, nele_jac, 0.);
 
     // initial condition
     {
@@ -495,7 +494,10 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       const int ndx = tcd->ndx1;
       MatMap jx{ptr, nr, ndx};
       jx = tcd->Jx_;
+      ptr += nr * ndx;
     }
+    auto d = std::distance(values, ptr);
+    ALIBENCH_ASSERT_PRETTY(d == nele_jac, "d != nnz_jac_g");
   }
   return true;
 }
