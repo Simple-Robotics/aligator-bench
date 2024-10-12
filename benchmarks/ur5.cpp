@@ -1,10 +1,4 @@
 #include <aligator/core/traj-opt-problem.hpp>
-#include <aligator/modelling/costs/quad-costs.hpp>
-#include <aligator/modelling/costs/quad-residual-cost.hpp>
-#include <aligator/modelling/costs/quad-state-cost.hpp>
-#include <aligator/modelling/costs/sum-of-costs.hpp>
-#include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
-#include <aligator/modelling/dynamics/multibody-free-fwd.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <aligator/utils/rollout.hpp>
 #include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
@@ -12,6 +6,7 @@
 #include "aligator-problem-to-altro.hpp"
 #include "util.hpp"
 #include "robots/robot_load.hpp"
+#include "ur5-util.hpp"
 
 #include <altro/altro.hpp>
 #include <matplot/matplot.h>
@@ -24,32 +19,7 @@ using alcontext::MatrixXs;
 using alcontext::StageModel;
 using alcontext::TrajOptProblem;
 using alcontext::VectorXs;
-using PolyCost = xyz::polymorphic<CostAbstract>;
 using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
-
-using MultibodyFreeFwd =
-    aligator::dynamics::MultibodyFreeFwdDynamicsTpl<double>;
-using Space = proxsuite::nlp::MultibodyPhaseSpace<double>;
-using aligator::dynamics::IntegratorSemiImplEulerTpl;
-
-aligator::CostStackTpl<double> createUr5Cost(Space space, double dt);
-
-xyz::polymorphic<alcontext::StageFunction>
-createUr5EeResidual(Space space, Eigen::Vector3d ee_pos);
-
-auto createTerminalCost(Space space, Eigen::Vector3d ee_pos) {
-  auto res = createUr5EeResidual(space, ee_pos);
-  Eigen::Matrix3d wr = Eigen::Matrix3d::Identity();
-  return aligator::QuadraticResidualCostTpl<double>{space, std::move(res), wr};
-}
-
-auto createRegTerminalCost(Space space) {
-  auto x0 = space.neutral();
-  const auto ndx = space.ndx();
-  const auto nu = space.getModel().nv;
-  MatrixXs wr = 1e-3 * MatrixXs::Identity(ndx, ndx);
-  return aligator::QuadraticStateCostTpl<double>{space, nu, x0, wr};
-}
 
 int main() {
   const double dt = 5e-2;
@@ -65,15 +35,13 @@ int main() {
   VectorXs x0 = space.neutral();
   x0.head<3>() << 0.1, -0.64, 1.38;
 
-  const IntegratorSemiImplEulerTpl<double> dynamics{MultibodyFreeFwd{space},
-                                                    dt};
+  const auto dynamics = createDynamics(space, dt);
   const auto rcost = createUr5Cost(space, dt);
 
   Eigen::Vector3d ee_term_pos{0.5, 0.5, 0.1};
   bool use_term_cstr = true;
-  const PolyCost term_cost = use_term_cstr
-                                 ? createRegTerminalCost(space)
-                                 : createTerminalCost(space, ee_term_pos);
+  const auto term_cost = use_term_cstr ? createRegTerminalCost(space)
+                                       : createTerminalCost(space, ee_term_pos);
 
   StageModel stage{rcost, dynamics};
   std::vector<VectorXs> us_init;
@@ -163,22 +131,4 @@ int main() {
   }
 
   return 0;
-}
-
-aligator::CostStackTpl<double> createUr5Cost(Space space, double dt) {
-  const pin::Model &model = space.getModel();
-  const auto nu = model.nv;
-  const auto ndx = space.ndx();
-  aligator::CostStackTpl<double> costs{space, nu};
-
-  MatrixXs Wx;
-  Wx.setIdentity(ndx, ndx);
-  Wx *= 0.1;
-
-  MatrixXs Wu{nu, nu};
-  Wu.setIdentity();
-  Wu *= 0.1;
-
-  costs.addCost("quad", aligator::QuadraticCostTpl<double>{Wx, Wu}, dt);
-  return costs;
 }
