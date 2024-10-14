@@ -32,9 +32,12 @@ class ProxDdpRunner:
                 solver.verbose = aligator.VERBOSE
             if param == "max_iters":
                 solver.max_iters = value
+        solver.rollout_type = self._settings.get(
+            "rollout_type", aligator.ROLLOUT_NONLINEAR
+        )
 
         bcl_params: solver.AlmParams = solver.bcl_params
-        bcl_params.mu_lower_bound = self._settings.setdefault("mu_lower_bound", 1e-10)
+        bcl_params.mu_lower_bound = self._settings.get("mu_lower_bound", 1e-10)
         solver.setup(prob)
         results: aligator.Results = solver.results
         try:
