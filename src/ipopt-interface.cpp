@@ -357,6 +357,7 @@ bool TrajOptIpoptNLP::eval_g(Index, const double *traj, bool new_x, Index,
     const int nc = int(problem_.term_cstrs_.totalDim());
     const int cidx = idx_constraints_[nsteps + 1];
     assert(nc > 0);
+    assert(nconstraints_ == cidx + nc);
     // TODO: fix for multiple constraints
     VecMap{g + cidx, nc} = tcsd->value_;
   }
@@ -490,7 +491,8 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
     if (!problem_.term_cstrs_.empty()) {
       // terminal constraint
       auto &tcd = problem_data_.term_cstr_data[0];
-      const int nr = tcd->nr;
+      const int nr = int(problem_.term_cstrs_.totalDim());
+      assert(nr == tcd->nr);
       const int ndx = tcd->ndx1;
       MatMap jx{ptr, nr, ndx};
       jx = tcd->Jx_;

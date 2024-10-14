@@ -22,6 +22,7 @@ void exposeIpoptSolver() {
       ._set_opt(int)
       ._set_opt(double)
 #undef _set_opt
+      .def("setMaxIters", &SolverIpopt::setMaxiters, ("self"_a, "value"))
 #define _c(name)                                                               \
   add_property(#name, bp::make_function(&SolverIpopt::name,                    \
                                         bp::return_internal_reference<>()))

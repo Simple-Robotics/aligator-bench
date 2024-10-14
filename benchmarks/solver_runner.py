@@ -145,7 +145,7 @@ class IpoptRunner:
         solver.setOption("tol", tol)
         for param, value in self._settings.items():
             if param == "max_iters":
-                solver.setOption("max_iter", value)
+                solver.setMaxIters(value)
 
         solver_code = solver.solve()
         print("Ipopt status:", solver_code)

@@ -25,6 +25,7 @@ struct SolverIpopt {
   void setOption(const std::string &name, const std::string &value);
   void setOption(const std::string &name, int value);
   void setOption(const std::string &name, double value);
+  void setMaxiters(int value) { setOption("max_iter", value); }
 
   const VectorOfVectors &xs() const;
   const VectorOfVectors &us() const;
