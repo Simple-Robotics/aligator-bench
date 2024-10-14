@@ -23,6 +23,9 @@ void exposeIpoptSolver() {
       ._set_opt(double)
 #undef _set_opt
       .def("setMaxIters", &SolverIpopt::setMaxiters, ("self"_a, "value"))
+      .def(
+          "setPrintLevel",
+          +[](SolverIpopt &s, int level) { s.setOption("print_level", level); })
 #define _c(name)                                                               \
   add_property(#name, bp::make_function(&SolverIpopt::name,                    \
                                         bp::return_internal_reference<>()))

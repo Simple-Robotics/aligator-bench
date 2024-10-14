@@ -137,21 +137,34 @@ bool TrajOptIpoptNLP::get_nlp_info(Index &n, Index &m, Index &nnz_jac_g,
   return true;
 }
 
-void bounds_equality(int m, double *g_l, double *g_u) {}
-void bounds_negative(int m, double *g_l, double *g_u) {}
-void bounds_box(int m, double *g_l, double *g_u) {}
-
-typedef void (*bounds_dispatch_t)(int, double *, double *);
-
+using alcontext::ConstraintSet;
 using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
 using NegativeOrthant = proxsuite::nlp::NegativeOrthantTpl<double>;
 using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
-boost::unordered_map<std::type_index, bounds_dispatch_t>
-    __aligatorConstraintDispatch{
-        {typeid(ZeroSet), bounds_equality},
-        {typeid(NegativeOrthant), bounds_negative},
-        {typeid(BoxConstraint), bounds_box},
-    };
+
+void bounds_equality(int m, double *g_l, double *g_u, void * = NULL) {
+  std::fill_n(g_l, m, 0.);
+  std::fill_n(g_u, m, 0.);
+}
+void bounds_negative(int m, double *, double *g_u, void *) {
+  std::fill_n(g_u, m, 0.);
+}
+void bounds_box(int m, double *g_l, double *g_u, void *set_) {
+  const BoxConstraint *set = reinterpret_cast<const BoxConstraint *>(set_);
+  VecMap{g_l, m} = set->lower_limit;
+  VecMap{g_u, m} = set->upper_limit;
+}
+
+typedef void (*bounds_dispatch_t)(int, double *, double *, void *);
+static boost::unordered_map<std::type_index, bounds_dispatch_t>
+    __aligatorConstraintDispatch{{typeid(ZeroSet), bounds_equality},
+                                 {typeid(NegativeOrthant), bounds_negative},
+                                 {typeid(BoxConstraint), bounds_box}};
+
+void callConstraintDispatch(int nr, double *g_l, double *g_u,
+                            const ConstraintSet &set) {
+  return __aligatorConstraintDispatch[typeid(set)](nr, g_l, g_u, (void *)&set);
+}
 
 bool TrajOptIpoptNLP::get_bounds_info(Index n, double *x_l, double *x_u,
                                       Index m, double *g_l, double *g_u) {
@@ -160,16 +173,45 @@ bool TrajOptIpoptNLP::get_bounds_info(Index n, double *x_l, double *x_u,
                          "n should be equal to number of primal variables!");
   ALIBENCH_ASSERT_PRETTY(m == nconstraints_,
                          "m should be equal to number of constraints!");
+  const std::size_t nsteps = problem_.numSteps();
+  const auto &sds = problem_.stages_;
+
   // 1. variable bounds
   // NOTE: Aligator has no explicit variable bounds
   std::fill_n(x_l, n, -2e19);
   std::fill_n(x_u, n, +2e19);
 
   // 2. constraint bounds
-  // TODO: use actual problem bounds, right now everything is equality
+  // initialize all bounds to zero
 
   std::fill_n(g_l, m, 0.);
   std::fill_n(g_u, m, 0.);
+
+  const int nr0 = problem_.init_constraint_->nr;
+  bounds_equality(nr0, g_l, g_u);
+
+  for (std::size_t i = 0; i < nsteps; i++) {
+    const auto &stage = *sds[i];
+    const int ndx2 = stage.ndx2();
+    int cidx = idx_constraints_[i + 1];
+
+    cidx += ndx2; // dynamic constraints are ok
+    for (std::size_t j = 0; j < stage.numConstraints(); j++) {
+      const int nrj = stage.constraints_.funcs[j]->nr;
+      const ConstraintSet &set = *stage.constraints_.sets[j];
+      callConstraintDispatch(nrj, g_l + cidx, g_u + cidx, set);
+      cidx += nrj;
+    }
+  }
+
+  const std::size_t nm_c = problem_.term_cstrs_.size();
+  int cidx = idx_constraints_[nsteps + 1];
+  for (std::size_t j = 0; j < nm_c; j++) {
+    const int nrj = problem_.term_cstrs_.funcs[j]->nr;
+    const ConstraintSet &set = *problem_.term_cstrs_.sets[j];
+    callConstraintDispatch(nrj, g_l + cidx, g_u + cidx, set);
+    cidx += nrj;
+  }
 
   return true;
 }
@@ -323,13 +365,16 @@ bool TrajOptIpoptNLP::eval_grad_f(Index n, const double *traj, bool new_x,
   return true;
 }
 
-bool TrajOptIpoptNLP::eval_g(Index, const double *traj, bool new_x, Index,
+bool TrajOptIpoptNLP::eval_g(Index, const double *traj, bool new_x, Index m,
                              double *g) {
   if (new_x) {
     this->update_internal_primal_variables(traj);
     problem_.evaluate(xs_, us_, problem_data_);
     problem_.computeDerivatives(xs_, us_, problem_data_);
   }
+
+  ALIBENCH_ASSERT_PRETTY(m == nconstraints_, "m != nconstraints");
+  std::fill_n(g, m, 0.);
 
   {
     // initial
