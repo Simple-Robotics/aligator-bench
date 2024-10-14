@@ -23,7 +23,7 @@ class ProxDdpRunner:
     def __init__(self, settings={}):
         self._settings = settings
 
-    def solve(self, example, tol: float):
+    def solve(self, example, tol: float) -> Result:
         prob: TrajOptProblem = example.problem
         solver = SolverProxDDP(tol)
         solver.mu_init = self._settings["mu_init"]  # required param
@@ -74,7 +74,7 @@ class AltroRunner:
     def name():
         return "ALTRO"
 
-    def solve(self, example, tol: float):
+    def solve(self, example, tol: float) -> Result:
         from aligator_bench_pywrap import (
             AltroVerbosity,
             SolveStatus,
@@ -120,6 +120,48 @@ class AltroRunner:
             altro_solver.GetIterations(),
             altro_solver.GetPrimalFeasibility(),
             altro_solver.GetStationarity(),
+        )
+
+    @property
+    def solver(self):
+        return self._solver
+
+
+class IpoptRunner:
+    def __init__(self, settings={}):
+        self._solver = None
+        self._settings = settings
+
+    @staticmethod
+    def name():
+        return "Ipopt"
+
+    def solve(self, example, tol: float) -> Result:
+        from aligator_bench_pywrap import SolverIpopt, IpoptApplicationReturnStatus
+
+        self._solver = solver = SolverIpopt()
+        p: TrajOptProblem = example.problem
+        solver.setup(p, True)
+        solver.setOption("tol", tol)
+        for param, value in self._settings.items():
+            if param == "max_iters":
+                solver.setOption("max_iter", value)
+
+        solver_code = solver.solve()
+        print("Ipopt status:", solver_code)
+        match solver_code:
+            case IpoptApplicationReturnStatus.Solve_Succeeded:
+                status = Status.CONVERGED
+            case IpoptApplicationReturnStatus.Maximum_Iterations_Exceeded:
+                status = Status.MAXITERATIONS
+            case _:
+                status = Status.ERROR
+        return Result(
+            status,
+            solver.traj_cost,
+            solver.num_iter,
+            max(solver.cstr_violation, solver.complementarity),
+            solver.dual_infeas,
         )
 
     @property
