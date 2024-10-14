@@ -35,6 +35,12 @@ struct SolverIpopt {
 
   std::unique_ptr<Ipopt::IpoptApplication> ipopt_app_;
   Ipopt::SmartPtr<Ipopt::TNLP> adapter_;
+
+  int num_iter_;
+  double traj_cost_;
+  double dual_infeas_;
+  double cstr_violation_;
+  double complementarity_;
 };
 
 } // namespace aligator_bench

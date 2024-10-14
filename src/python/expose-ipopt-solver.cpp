@@ -6,6 +6,8 @@
 #include <IpIpoptApplication.hpp>
 #include <IpReturnCodes.hpp>
 
+#define _get_ro(clsname, name) def_readonly(#name, &clsname::name##_)
+
 void exposeIpoptSolver() {
   using namespace aligator_bench;
 #define _set_opt(type)                                                         \
@@ -28,7 +30,11 @@ void exposeIpoptSolver() {
       ._c(lams)
       ._c(vs)
 #undef _c
-      ;
+      ._get_ro(SolverIpopt, num_iter)
+      ._get_ro(SolverIpopt, traj_cost)
+      ._get_ro(SolverIpopt, dual_infeas)
+      ._get_ro(SolverIpopt, cstr_violation)
+      ._get_ro(SolverIpopt, complementarity);
 
   bp::enum_<Ipopt::ApplicationReturnStatus>("IpoptApplicationReturnStatus")
 #define _c(name) value(#name, Ipopt::ApplicationReturnStatus::name)

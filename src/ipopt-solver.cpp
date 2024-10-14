@@ -2,6 +2,8 @@
 #include "ipopt-interface.hpp"
 
 #include <IpIpoptApplication.hpp>
+#include <IpIpoptData.hpp>
+#include <IpIpoptCalculatedQuantities.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 
 namespace aligator_bench {
@@ -44,6 +46,25 @@ Ipopt::ApplicationReturnStatus SolverIpopt::solve() {
   if (status != Ipopt::Solve_Succeeded) {
     fmt::println("\n ** Error during optimization! (Code {:d})", int(status));
   }
+
+  // Collect computed quantities.
+  // Check source code of IpoptApplication, in IpIpoptApplication.cpp.
+  // These are the same values as the solver printout.
+
+  Ipopt::IpoptData *pip_data = Ipopt::GetRawPtr(ipopt_app_->IpoptDataObject());
+  num_iter_ = pip_data->iter_count();
+
+  Ipopt::IpoptCalculatedQuantities *pip_cq =
+      Ipopt::GetRawPtr(ipopt_app_->IpoptCQObject());
+  assert(pip_cq != NULL);
+  using Ipopt::ENormType;
+  traj_cost_ = pip_cq->unscaled_curr_f();
+  dual_infeas_ = pip_cq->unscaled_curr_dual_infeasibility(ENormType::NORM_MAX);
+  cstr_violation_ =
+      pip_cq->unscaled_curr_nlp_constraint_violation(ENormType::NORM_MAX);
+  complementarity_ =
+      pip_cq->unscaled_curr_complementarity(0., ENormType::NORM_MAX);
+
   return status;
 }
 

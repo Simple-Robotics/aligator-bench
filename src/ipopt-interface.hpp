@@ -30,7 +30,6 @@ class TrajOptIpoptNLP final : public Ipopt::TNLP {
 public:
   using Index = Ipopt::Index;
   using SolverReturn = Ipopt::SolverReturn;
-  using IpoptData = Ipopt::IpoptData;
 
   TrajOptIpoptNLP(const TrajOptProblem &problem, bool verbose = false);
 
@@ -65,7 +64,7 @@ public:
   void finalize_solution(SolverReturn status, Index n, const double *x,
                          const double *z_L, const double *z_U, Index m,
                          const double *g, const double *lambda,
-                         double obj_value, const IpoptData *ip_data,
+                         double obj_value, const Ipopt::IpoptData *ip_data,
                          Ipopt::IpoptCalculatedQuantities *ip_cq) override;
 
   const TrajOptProblem &problem_;
