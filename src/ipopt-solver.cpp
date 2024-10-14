@@ -12,6 +12,11 @@ SolverIpopt::SolverIpopt(bool rethrow_nonipopt_exception) {
   ipopt_app_ = std::make_unique<Ipopt::IpoptApplication>();
 
   ipopt_app_->RethrowNonIpoptException(rethrow_nonipopt_exception);
+
+  setOption("jacobian_approximation", "exact");
+  setOption("print_level", 4);
+  setOption("linear_solver", "mumps");
+  setOption("max_iter", 300);
 }
 
 Ipopt::ApplicationReturnStatus SolverIpopt::setup(const TrajOptProblem &problem,
@@ -22,11 +27,6 @@ Ipopt::ApplicationReturnStatus SolverIpopt::setup(const TrajOptProblem &problem,
   if (status != Ipopt::Solve_Succeeded) {
     fmt::println("\n ** Error during initialization! (Code {:d})", int(status));
   }
-
-  setOption("jacobian_approximation", "exact");
-  setOption("print_level", 4);
-  setOption("linear_solver", "mumps");
-  setOption("max_iter", 300);
 
   return status;
 }
