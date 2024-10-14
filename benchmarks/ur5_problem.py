@@ -68,10 +68,10 @@ class URProblem(object):
             fn = aligator.FrameTranslationResidual(
                 ndx, nu, rmodel, np.asarray(pf), ee_id
             )
-            return aligator.StageConstraint(fn, constraints.EqualityConstraintSet())
+            return fn, constraints.EqualityConstraintSet()
 
         problem = aligator.TrajOptProblem(x0, nu, space, term_cost)
-        problem.addTerminalConstraint(createTermConstraint(ee_target))
+        problem.addTerminalConstraint(*createTermConstraint(ee_target))
 
         for i in range(nsteps):
             stage = aligator.StageModel(rcost, dyn)
