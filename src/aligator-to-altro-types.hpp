@@ -21,7 +21,7 @@ using altroExplicitDynamics = std::tuple<altro::ExplicitDynamicsFunction,
 
 using altroConstraint =
     std::tuple<altro::ConstraintFunction, altro::ConstraintFunction,
-               altro::ConstraintType>;
+               altro::ConstraintType, int>;
 
 /// @brief Convert aligator cost function to altro
 altroCostTriplet aligatorCostToAltro(xyz::polymorphic<CostAbstract> aliCost);

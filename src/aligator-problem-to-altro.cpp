@@ -18,9 +18,8 @@ initAltroFromAligatorProblem(const alcontext::TrajOptProblem &problem) {
                                      const alcontext::ConstraintStack &cstrs) {
     // constraints
     if (cstrs.size() == 1) {
-      auto [c, Jc, ct] =
+      auto [c, Jc, ct, dim] =
           aligatorConstraintToAltro(nx, cstrs.funcs[0], cstrs.sets[0]);
-      const int dim = (int)cstrs.dims()[0];
       solver.SetConstraint(c, Jc, dim, ct, "constraint", k, k + 1);
     } else if (cstrs.size() > 1) {
       throw std::runtime_error("Multiple constraints not supported.");

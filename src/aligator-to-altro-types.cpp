@@ -94,11 +94,48 @@ aligatorExpDynamicsToAltro(xyz::polymorphic<DynamicsModel> dynamics) {
 
 using ZeroSet = proxsuite::nlp::EqualityConstraintTpl<double>;
 using NegativeOrthant = proxsuite::nlp::NegativeOrthantTpl<double>;
+using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
 
 boost::unordered_map<std::type_index, altro::ConstraintType>
     __aligatorConstraintRttiToAltro = {
         {typeid(ZeroSet), altro::ConstraintType::EQUALITY},
         {typeid(NegativeOrthant), altro::ConstraintType::INEQUALITY}};
+
+/// Reformulate as a two-sided inequality constraint
+altroConstraint
+_aligator_boxconstraint_handle(int nx, xyz::polymorphic<StageFunction> func,
+                               const BoxConstraint &set) {
+  using altro::a_float;
+  auto data = func->createData();
+  altro::ConstraintFunction c = [nx, f = func, set, data](a_float *val,
+                                                          const a_float *x_,
+                                                          const a_float *u_) {
+    const int nr = f->nr;
+    VecMap value{val, 2 * nr};
+    ConstVecMap x{x_, nx};
+    ConstVecMap u{u_, f->nu};
+
+    f->evaluate(x, u, *data);
+    value.head(nr) = data->value_ - set.upper_limit;
+    value.tail(nr) = set.lower_limit - data->value_;
+  };
+  altro::ConstraintJacobian Jc = [nx, f = func, data](a_float *jac_,
+                                                      const a_float *x_,
+                                                      const a_float *u_) {
+    const int ndx = f->ndx1;
+    const int nu = f->nu;
+    const int nr = f->nr;
+    MatMap jac{jac_, 2 * nr, ndx + nu};
+    ConstVecMap x{x_, nx};
+    ConstVecMap u{u_, nu};
+    f->evaluate(x, u, *data);
+    f->computeJacobians(x, u, *data);
+    jac.topLeftCorner(nr, ndx) = data->Jx_;
+    jac.topRightCorner(nr, nu) = data->Ju_;
+    jac.bottomRows(nr) = -jac.topRows(nr);
+  };
+  return {c, Jc, altro::ConstraintType::INEQUALITY, 2 * func->nr};
+};
 
 // Return Rtti
 altro::ConstraintType
@@ -109,6 +146,10 @@ aligatorConstraintAltroType(const alcontext::ConstraintSet &constraint) {
 altroConstraint aligatorConstraintToAltro(int nx,
                                           xyz::polymorphic<StageFunction> func,
                                           xyz::polymorphic<ConstraintSet> set) {
+  if (auto ps = dynamic_cast<const BoxConstraint *>(&*set)) {
+    return _aligator_boxconstraint_handle(nx, func, *ps);
+  }
+
   using altro::a_float;
   auto data = func->createData();
   altro::ConstraintFunction c =
@@ -123,8 +164,8 @@ altroConstraint aligatorConstraintToAltro(int nx,
   altro::ConstraintJacobian Jc = [nx, f = func, data](a_float *jac_,
                                                       const a_float *x_,
                                                       const a_float *u_) {
-    const auto ndx = f->ndx1;
-    const auto nu = f->nu;
+    const int ndx = f->ndx1;
+    const int nu = f->nu;
     MatMap jac{jac_, f->nr, ndx + nu};
     ConstVecMap x{x_, nx};
     ConstVecMap u{u_, nu};
@@ -134,7 +175,7 @@ altroConstraint aligatorConstraintToAltro(int nx,
     jac.rightCols(nu) = data->Ju_;
   };
   altro::ConstraintType ct = aligatorConstraintAltroType(*set);
-  return {c, Jc, ct};
+  return {c, Jc, ct, func->nr};
 }
 
 } // namespace aligator_bench
