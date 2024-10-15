@@ -10,10 +10,11 @@ from aligator.utils import plotting
 from aligator_bench_pywrap import SolverIpopt
 from pinocchio.visualize import MeshcatVisualizer
 from tap import Tap
+from typing import Literal
 
 
 class Args(Tap):
-    ipopt: bool = False
+    solver: Literal["ali", "ipopt", "altro"]
     viz: bool = False
 
 
@@ -42,7 +43,7 @@ frame_res1 = aligator.FrameTranslationResidual(ndx, nu, rmodel, ee_ref1, ee_id)
 term_cost.addCost(aligator.QuadraticResidualCost(space, frame_res1, w_ee))
 term_cost.addCost(aligator.QuadraticStateCost(space, nu, x0, 1e-2 * np.eye(ndx)))
 
-nsteps = 40
+nsteps = 400
 tf = 4.0
 dt = tf / nsteps
 times = np.linspace(0.0, tf, nsteps + 1)
@@ -75,32 +76,61 @@ for i in range(nsteps):
 problem = aligator.TrajOptProblem(x0, stages, term_cost)
 problem.addTerminalConstraint(frame_res1, constraints.EqualityConstraintSet())
 
-TOL = 1e-5
+TOL = 1e-4
 mu_init = 1e-4
 max_iter = 400
 
-if not args.ipopt:
-    solver = aligator.SolverProxDDP(TOL, mu_init)
-    solver.rollout_type = aligator.ROLLOUT_LINEAR
-    solver.max_iters = max_iter
-    solver.setup(problem)
-    _start = time.time_ns()
-    ret = solver.run(problem)
-    _elapsed = time.time_ns() - _start
-    print(f"Elapsed: {_elapsed * 1e-6} ms")
-    print(solver.results)
-    xs_sol = solver.results.xs.tolist()
-    us_sol = solver.results.us.tolist()
-else:
-    solver = SolverIpopt()
-    solver.setup(problem, True)
-    solver.setOption("tol", TOL)
-    solver.setPrintLevel(5)
-    solver.setMaxIters(max_iter)
-    ret = solver.solve()
-    xs_sol = solver.xs.tolist()
-    us_sol = solver.us.tolist()
-print(ret)
+match args.solver:
+    case "ali":
+        solver = aligator.SolverProxDDP(TOL, mu_init)
+        solver.rollout_type = aligator.ROLLOUT_LINEAR
+        solver.max_iters = max_iter
+        solver.setup(problem)
+        _start = time.time_ns()
+        ret = solver.run(problem)
+        _elapsed = time.time_ns() - _start
+        print(f"Elapsed: {_elapsed * 1e-6} ms")
+        print(solver.results)
+        xs_sol = solver.results.xs.tolist()
+        us_sol = solver.results.us.tolist()
+    case "ipopt":
+        solver = SolverIpopt()
+        solver.setup(problem, True)
+        solver.setOption("tol", TOL)
+        solver.setPrintLevel(5)
+        solver.setMaxIters(max_iter)
+        _start = time.time_ns()
+        ret = solver.solve()
+        _elapsed = time.time_ns() - _start
+        print(f"Elapsed: {_elapsed * 1e-6} ms")
+        xs_sol = solver.xs.tolist()
+        us_sol = solver.us.tolist()
+    case "altro":
+        from aligator_bench_pywrap import (
+            ALTROSolver,
+            AltroVerbosity,
+            initAltroFromAligatorProblem,
+        )
+
+        _altrosolver: ALTROSolver = initAltroFromAligatorProblem(problem)
+        init_code = _altrosolver.Initialize()
+        _altro_opts = _altrosolver.GetOptions()
+        _altro_opts.iterations_max = max_iter
+        _altro_opts.tol_cost = 1e-16
+        _altro_opts.tol_primal_feasibility = TOL
+        _altro_opts.tol_stationarity = TOL
+        _altro_opts.verbose = AltroVerbosity.Inner
+        _altro_opts.use_backtracking_linesearch = True
+        print(init_code)
+        _start = time.time_ns()
+        ret = _altrosolver.Solve()
+        _elapsed = time.time_ns() - _start
+        print(f"Elapsed: {_elapsed * 1e-6} ms")
+        print(ret)
+        xs_sol = _altrosolver.GetAllStates().tolist()
+        us_sol = _altrosolver.GetAllInputs().tolist()
+    case _:
+        raise ValueError("Derp")
 
 
 def get_ee_traj(xs, rmodel: pin.Model):
