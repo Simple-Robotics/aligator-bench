@@ -146,11 +146,13 @@ class IpoptRunner:
 
         self._solver = solver = SolverIpopt()
         p: TrajOptProblem = example.problem
-        solver.setup(p, True)
+        solver.setup(p)
         solver.setOption("tol", tol)
         for param, value in self._settings.items():
             if param == "max_iters":
                 solver.setMaxIters(value)
+            if param == "print_level":
+                solver.setPrintLevel(value)
 
         solver_code = solver.solve()
         print("Ipopt status:", solver_code)
