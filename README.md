@@ -4,18 +4,24 @@ This is a set of small benchmarks for the [aligator](https://github.com/Simple-R
 
 ## Contents
 
+We test the following solvers:
+
+- aligator's `SolverProxDDP`
+- ALTRO (using a fork included as a submodule)
+- the generic NLP solver [Ipopt](https://coin-or.github.io/Ipopt/)
+
 ## Building
 
 **Dependencies** Building this repo requires:
 
 - [aligator](https://github.com/Simple-Robotics/aligator)
-- [gtest](https://github.com/google/googletest)
-- [ipopt](https://github.com/coin-or/Ipopt) | [conda](https://anaconda.org/conda-forge/ipopt)
+- [gtest](https://github.com/google/googletest) | [conda](https://anaconda.org/conda-forge/gtest)
+- [ipopt](https://coin-or.github.io/Ipopt/) | [repo](https://github.com/coin-or/Ipopt) | [conda](https://anaconda.org/conda-forge/ipopt)
 
 These dependencies can easily be installed from conda/mamba:
 
 ```bash
-mamba install -c conda-forge aligator gtest benchmark
+mamba install -c conda-forge aligator gtest
 ```
 
 The first step, as always, is to checkout the repository (recursively, as to get the submodules)
@@ -28,6 +34,6 @@ Then, create the build dir and build away:
 
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release # with your usual options e.g. -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
+cmake ..  # with your usual options e.g. -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
 cmake --build . -j<num-jobs>
 ```
