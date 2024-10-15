@@ -80,6 +80,7 @@ class AltroRunner:
     def solve(self, example, tol: float) -> Result:
         from aligator_bench_pywrap import (
             AltroVerbosity,
+            AltroOptions,
             SolveStatus,
             ErrorCodes,
             initAltroFromAligatorProblem,
@@ -90,12 +91,11 @@ class AltroRunner:
         init_code = altro_solver.Initialize()
         assert init_code == ErrorCodes.NoError
 
-        altro_opts = altro_solver.GetOptions()
+        altro_opts: AltroOptions = altro_solver.GetOptions()
         altro_opts.tol_cost = 1e-16
         altro_opts.tol_primal_feasibility = tol
         # this is actually both the outer loop AND
         # final tolerance...
-        # altro_opts.tol_stationarity = tol
         altro_opts.iterations_max = 400
         altro_opts.use_backtracking_linesearch = True
 
@@ -106,6 +106,8 @@ class AltroRunner:
                 altro_opts.iterations_max = value
             if param == "tol_stationarity":
                 altro_opts.tol_stationarity = value
+            if param == "mu_init":
+                altro_opts.penalty_initial = value
 
         solver_code = altro_solver.Solve()
         match solver_code:
