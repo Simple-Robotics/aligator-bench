@@ -4,9 +4,9 @@
 #include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
 
 #include "aligator-problem-to-altro.hpp"
-#include "util.hpp"
+#include "plot_util.hpp"
 #include "robots/robot_load.hpp"
-#include "ur5-util.hpp"
+#include "problems/ur5-util.hpp"
 
 #include <altro/altro.hpp>
 #include <matplot/matplot.h>

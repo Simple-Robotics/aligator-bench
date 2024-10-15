@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "linear-problem.hpp"
+#include "problems/linear-problem.hpp"
 #include "ipopt-interface.hpp"
 #include "ipopt-solver.hpp"
 #include <IpIpoptApplication.hpp>
