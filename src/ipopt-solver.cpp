@@ -88,4 +88,9 @@ const VectorOfVectors &SolverIpopt::vs() const {
   return pi.vs_;
 }
 
+void SolverIpopt::setInitialGuess(VectorOfVectors xs, VectorOfVectors us) {
+  auto &pi = static_cast<TrajOptIpoptNLP &>(*adapter_);
+  pi.xs_ = std::move(xs);
+  pi.us_ = std::move(us);
+}
 } // namespace aligator_bench

@@ -18,6 +18,8 @@ void exposeIpoptSolver() {
       .def("setup", &SolverIpopt::setup,
            ("self"_a, "problem", "verbose"_a = false))
       .def("solve", &SolverIpopt::solve, ("self"_a))
+      .def("setInitialGuess", &SolverIpopt::setInitialGuess,
+           ("self"_a, "xs", "us"))
       ._set_opt(const std::string &)
       ._set_opt(int)
       ._set_opt(double)

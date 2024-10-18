@@ -32,6 +32,8 @@ struct SolverIpopt {
   const VectorOfVectors &lams() const;
   const VectorOfVectors &vs() const;
 
+  void setInitialGuess(VectorOfVectors xs, VectorOfVectors us);
+
   Ipopt::ApplicationReturnStatus solve();
 
   std::unique_ptr<Ipopt::IpoptApplication> ipopt_app_;
