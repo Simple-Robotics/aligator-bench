@@ -1,10 +1,11 @@
 import pinocchio as pin
 import numpy as np
 import aligator
+import contextlib
 
-from pinocchio.visualize import MeshcatVisualizer
+from pinocchio.visualize.meshcat_visualizer import MeshcatVisualizer
 from aligator.dynamics import MultibodyConstraintFwdDynamics, IntegratorSemiImplEuler
-from aligator import manifolds, underactuatedConstrainedInverseDynamics
+from aligator import constraints, manifolds, underactuatedConstrainedInverseDynamics
 from .common import Args
 
 
@@ -148,6 +149,14 @@ def create_target(ti: float):
     return xtgt
 
 
+def ee_fl_foot_xres():
+    from aligator import FrameTranslationResidual
+
+    fid = FOOT_FRAME_IDS["FL_FOOT"]
+    fres = FrameTranslationResidual(ndx, nu, rmodel, np.zeros(3), fid)[0]
+    return fres
+
+
 stages = []
 for i in range(nsteps):
     rcost = aligator.CostStack(space, nu)
@@ -166,6 +175,9 @@ for i in range(nsteps):
         "ureg", aligator.QuadraticControlCost(space, nu, np.eye(nu)), 1e-1 * dt
     )
     stage = aligator.StageModel(rcost, _dyn)
+    if ti >= 2.5:
+        fres = ee_fl_foot_xres()
+        stage.addConstraint(fres, constraints.NegativeOrthant())
     stages.append(stage)
 
 xterm = xref.copy()
@@ -228,5 +240,12 @@ qs_opt = np.asarray(xs_opt)[:, :nq]
 
 input("[enter]")
 
-viz.play(qs_opt, dt=dt)
+viz.setCameraPosition([0.5, 0.5, 0.5])
+ctx = (
+    viz.create_video_ctx("solo12_lift_paw.mp4")
+    if args.record
+    else contextlib.nullcontext()
+)
+with ctx:
+    viz.play(qs_opt, dt=dt)
 # viz.display(q_standing)
