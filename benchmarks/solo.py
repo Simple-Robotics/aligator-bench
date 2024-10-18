@@ -187,7 +187,8 @@ match args.solver:
         solver.verbose = aligator.VERBOSE
         solver.max_iters = MAX_ITER
         solver.setup(problem)
-        solver.run(problem, xs_init, us_init)
+        # solver.run(problem, xs_init, us_init)
+        solver.run(problem)
 
         results = solver.results
         print(results)
@@ -197,7 +198,7 @@ match args.solver:
 
         solver = SolverIpopt()
         solver.setup(problem, True)
-        solver.setInitialGuess(xs_init, us_init)
+        # solver.setInitialGuess(xs_init, us_init)
         solver.setOption("tol", TOL)
         solver.setMaxIters(MAX_ITER)
         solver.solve()
