@@ -11,10 +11,11 @@ from .common import Args
 args = Args().parse_args()
 
 
-def load_bolt(verbose=False):
+def load_solo8(verbose=False):
+    """Load Solo8 with Euclidean parameterization."""
     from os.path import join
     from example_robot_data.robots_loader import (
-        BoltLoader,
+        Solo8Loader,
         RobotWrapper,
         getModelPath,
         readParamsFromSrdf,
@@ -22,29 +23,31 @@ def load_bolt(verbose=False):
 
     jmc = pin.JointModelComposite(pin.JointModelTranslation())
     jmc.addJoint(pin.JointModelSphericalZYX())
-    df_path = join(BoltLoader.path, BoltLoader.urdf_subpath, BoltLoader.urdf_filename)
+    df_path = join(
+        Solo8Loader.path, Solo8Loader.urdf_subpath, Solo8Loader.urdf_filename
+    )
     model_path = getModelPath(df_path, verbose)
     df_path = join(model_path, df_path)
     builder = RobotWrapper.BuildFromURDF
     robot = builder(df_path, [join(model_path, "../..")], jmc)
     srdf_path = join(
         model_path,
-        BoltLoader.path,
-        BoltLoader.srdf_subpath,
-        BoltLoader.srdf_filename,
+        Solo8Loader.path,
+        Solo8Loader.srdf_subpath,
+        Solo8Loader.srdf_filename,
     )
     robot.q0 = readParamsFromSrdf(
         robot.model,
         srdf_path,
         verbose,
-        BoltLoader.has_rotor_parameters,
-        BoltLoader.ref_posture,
+        Solo8Loader.has_rotor_parameters,
+        Solo8Loader.ref_posture,
     )
 
     return robot
 
 
-robot = load_bolt()
+robot = load_solo8()
 rmodel: pin.Model = robot.model
 rdata: pin.Data = robot.data
 
@@ -52,15 +55,10 @@ rdata: pin.Data = robot.data
 def get_default_pose():
     q0 = rmodel.referenceConfigurations["standing"].copy()
     fr_foot_fid = rmodel.getFrameId("FR_FOOT")
-    jid0 = rmodel.getJointId("FL_HAA")
-    jid1 = rmodel.getJointId("FR_HAA")
-    id0 = rmodel.idx_qs[jid0]
-    id1 = rmodel.idx_qs[jid1]
-    q0[id0] *= 0.4
-    q0[id1] *= 0.4
     pin.forwardKinematics(rmodel, rdata, q0)
     pin.updateFramePlacement(rmodel, rdata, fr_foot_fid)
     q0[2] -= rdata.oMf[fr_foot_fid].translation[2]
+    q0[2] += 0.01
     pin.framesForwardKinematics(rmodel, rdata, q0)
     return q0
 
@@ -69,8 +67,8 @@ q_standing = get_default_pose()
 
 viz = MeshcatVisualizer(rmodel, visual_model=robot.visual_model, data=rdata)
 
-FOOT_FRAME_IDS = {fname: rmodel.getFrameId(fname) for fname in ("FL_FOOT", "FR_FOOT")}
-
+FOOT_NAMES = ("FL_FOOT", "FR_FOOT", "HL_FOOT", "HR_FOOT")
+FOOT_FRAME_IDS = {fname: rmodel.getFrameId(fname) for fname in FOOT_NAMES}
 FOOT_JOINT_IDS = {
     fname: rmodel.frames[fid].parentJoint for fname, fid in FOOT_FRAME_IDS.items()
 }
@@ -108,11 +106,11 @@ act_matrix = np.eye(nv, nu, -6)
 space = manifolds.MultibodyPhaseSpace(rmodel)
 ndx = space.ndx
 
-rcms1 = get_constraint_models(("FL_FOOT", "FR_FOOT"))
+rcms1 = get_constraint_models(FOOT_NAMES)
 rcms2 = get_constraint_models([])
 
 nsteps = 200
-dt = 20e-3
+dt = 0.01
 tf = nsteps * dt
 
 prox_settings = pin.ProximalSettings(1e-8, 1e-10, 10)
@@ -131,39 +129,22 @@ stages = []
 for i in range(nsteps):
     rcost = aligator.CostStack(space, nu)
 
-    Wx = np.ones(ndx)
     _target = xref.copy()
     _dyn = dyn1
     # if n0 <= i < n1:
     #     _dyn = dyn2
     #     _target[2] = 0.3
-    Wx = np.diag(Wx)
+    Wx = np.diag(np.ones(ndx))
 
-    # for fname in ("FL_FOOT", "FR_FOOT"):
-    #     wrench_res = MultibodyWrenchConeResidual(
-    #         ndx,
-    #         rmodel,
-    #         act_matrix,
-    #         rcms1,
-    #         prox_settings,
-    #         fname,
-    #         mu=0.1,
-    #         half_length=0.2,
-    #         half_width=0.2,
-    #     )
-    #     wrench_cost = aligator.QuadraticResidualCost(
-    #         space, wrench_res, dt * np.eye(wrench_res.nr)
-    #     )
-    #     rcost.addCost(f"wrench_{fname}", wrench_cost, 1e-6)
-    scost = aligator.QuadraticStateCost(space, nu, _target, dt * Wx)
-    rcost.addCost("xreg", scost, 1.0)
+    rcost.addCost("xreg", aligator.QuadraticStateCost(space, nu, _target, dt * Wx), 1.0)
     rcost.addCost(
         "ureg", aligator.QuadraticControlCost(space, nu, dt * np.eye(nu)), 1e-1
     )
     stage = aligator.StageModel(rcost, _dyn)
     stages.append(stage)
 
-term_cost = aligator.QuadraticStateCost(space, nu, xref, np.eye(ndx))
+Wx_term = 1e-3 * np.eye(ndx)
+term_cost = aligator.QuadraticStateCost(space, nu, xref, Wx_term)
 problem = aligator.TrajOptProblem(xref, stages, term_cost)
 
 
@@ -171,16 +152,15 @@ TOL = 1e-3
 MAX_ITER = 200
 match args.solver:
     case "ali":
-        mu_init = 10.0
+        mu_init = 1e-4
         solver = aligator.SolverProxDDP(TOL, mu_init)
-        solver.rollout_type = aligator.ROLLOUT_LINEAR
         solver.verbose = aligator.VERBOSE
         solver.max_iters = MAX_ITER
         solver.setup(problem)
         solver.run(problem)
 
         results = solver.results
-        # print(results)
+        print(results)
         xs_opt = results.xs
     case "ipopt":
         from aligator_bench_pywrap import SolverIpopt
