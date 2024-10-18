@@ -4,18 +4,18 @@ import aligator
 
 from pinocchio.visualize import MeshcatVisualizer
 from aligator.dynamics import MultibodyConstraintFwdDynamics, IntegratorSemiImplEuler
-from aligator import manifolds
+from aligator import manifolds, underactuatedConstrainedInverseDynamics
 from .common import Args
 
 
 args = Args().parse_args()
 
 
-def load_solo8(verbose=False):
-    """Load Solo8 with Euclidean parameterization."""
+def load_solo12(verbose=False):
+    """Load Solo12 with Euclidean parameterization."""
     from os.path import join
     from example_robot_data.robots_loader import (
-        Solo8Loader,
+        Solo12Loader,
         RobotWrapper,
         getModelPath,
         readParamsFromSrdf,
@@ -24,7 +24,7 @@ def load_solo8(verbose=False):
     jmc = pin.JointModelComposite(pin.JointModelTranslation())
     jmc.addJoint(pin.JointModelSphericalZYX())
     df_path = join(
-        Solo8Loader.path, Solo8Loader.urdf_subpath, Solo8Loader.urdf_filename
+        Solo12Loader.path, Solo12Loader.urdf_subpath, Solo12Loader.urdf_filename
     )
     model_path = getModelPath(df_path, verbose)
     df_path = join(model_path, df_path)
@@ -32,22 +32,22 @@ def load_solo8(verbose=False):
     robot = builder(df_path, [join(model_path, "../..")], jmc)
     srdf_path = join(
         model_path,
-        Solo8Loader.path,
-        Solo8Loader.srdf_subpath,
-        Solo8Loader.srdf_filename,
+        Solo12Loader.path,
+        Solo12Loader.srdf_subpath,
+        Solo12Loader.srdf_filename,
     )
     robot.q0 = readParamsFromSrdf(
         robot.model,
         srdf_path,
         verbose,
-        Solo8Loader.has_rotor_parameters,
-        Solo8Loader.ref_posture,
+        Solo12Loader.has_rotor_parameters,
+        Solo12Loader.ref_posture,
     )
 
     return robot
 
 
-robot = load_solo8()
+robot = load_solo12()
 rmodel: pin.Model = robot.model
 rdata: pin.Data = robot.data
 
@@ -74,7 +74,7 @@ FOOT_JOINT_IDS = {
 }
 
 
-def get_constraint_models(feet_names, Kp=(0.0, 0.0, 1e2), Kd=50):
+def get_constraint_models(feet_names, Kp, Kd=50):
     rcms = []
 
     for fname in feet_names:
@@ -106,45 +106,72 @@ act_matrix = np.eye(nv, nu, -6)
 space = manifolds.MultibodyPhaseSpace(rmodel)
 ndx = space.ndx
 
-rcms1 = get_constraint_models(FOOT_NAMES)
-rcms2 = get_constraint_models([])
+rcms1 = get_constraint_models(FOOT_NAMES, 1e3)
+rcms2 = get_constraint_models(("FR_FOOT", "HL_FOOT", "HR_FOOT"), 1e3)
 
-nsteps = 200
+tf = 3.0
 dt = 0.01
-tf = nsteps * dt
+nsteps = int(tf / dt)
+print(f"nsteps = {nsteps}")
 
-prox_settings = pin.ProximalSettings(1e-8, 1e-10, 10)
+prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
 ode1 = MultibodyConstraintFwdDynamics(space, act_matrix, rcms1, prox_settings)
 ode2 = MultibodyConstraintFwdDynamics(space, act_matrix, rcms2, prox_settings)
-xref = np.concatenate((q_standing, np.zeros(nv)))
+v0 = np.zeros(nv)
+xref = np.concatenate((q_standing, v0))
+u0, _ = underactuatedConstrainedInverseDynamics(
+    rmodel, rdata, q_standing, v0, act_matrix, rcms1, [cm.createData() for cm in rcms1]
+)
 
 dyn1 = IntegratorSemiImplEuler(ode1, dt)
 dyn2 = IntegratorSemiImplEuler(ode2, dt)
 
-n0 = 80
-n1 = 110
+xs_init = [xref] * (nsteps + 1)
+us_init = [u0] * nsteps
+print(f"xref = {xref}")
+
+
+def create_target(ti: float):
+    xtgt = xref.copy()
+    freq = 3.0
+    phas = freq * ti
+    amp = xtgt[2] * 1.1
+    xtgt[2] += amp * np.sin(phas)
+
+    if 1.0 <= ti < 1.5:
+        xtgt[4] = np.deg2rad(30)
+    if 1.5 <= ti:
+        xtgt[4] = np.deg2rad(-20)
+
+    return xtgt
 
 
 stages = []
 for i in range(nsteps):
     rcost = aligator.CostStack(space, nu)
+    ti = dt * i
 
-    _target = xref.copy()
+    _target = create_target(ti)
     _dyn = dyn1
-    # if n0 <= i < n1:
-    #     _dyn = dyn2
-    #     _target[2] = 0.3
-    Wx = np.diag(np.ones(ndx))
+    if ti >= 2.0:
+        _dyn = dyn2
+    Wx = 1e-2 * np.ones(ndx)
+    Wx[[2, 4]] = 2.0
+    Wx = np.diag(Wx)
 
-    rcost.addCost("xreg", aligator.QuadraticStateCost(space, nu, _target, dt * Wx), 1.0)
+    rcost.addCost("xreg", aligator.QuadraticStateCost(space, nu, _target, Wx), dt)
     rcost.addCost(
-        "ureg", aligator.QuadraticControlCost(space, nu, dt * np.eye(nu)), 1e-1
+        "ureg", aligator.QuadraticControlCost(space, nu, np.eye(nu)), 1e-1 * dt
     )
     stage = aligator.StageModel(rcost, _dyn)
     stages.append(stage)
 
-Wx_term = 1e-3 * np.eye(ndx)
-term_cost = aligator.QuadraticStateCost(space, nu, xref, Wx_term)
+xterm = xref.copy()
+Wx_term = 1e-1 * np.ones(ndx)
+Wx_term[[4, 5]] = 4.0
+xterm[4] = np.deg2rad(-25)
+xterm[5] = np.deg2rad(20)
+term_cost = aligator.QuadraticStateCost(space, nu, xterm, np.diag(Wx_term))
 problem = aligator.TrajOptProblem(xref, stages, term_cost)
 
 
@@ -154,10 +181,11 @@ match args.solver:
     case "ali":
         mu_init = 1e-4
         solver = aligator.SolverProxDDP(TOL, mu_init)
+        solver.rollout_type = aligator.ROLLOUT_LINEAR
         solver.verbose = aligator.VERBOSE
         solver.max_iters = MAX_ITER
         solver.setup(problem)
-        solver.run(problem)
+        solver.run(problem, xs_init, us_init)
 
         results = solver.results
         print(results)
@@ -167,6 +195,7 @@ match args.solver:
 
         solver = SolverIpopt()
         solver.setup(problem, True)
+        solver.setInitialGuess(xs_init, us_init)
         solver.setOption("tol", TOL)
         solver.setMaxIters(MAX_ITER)
         solver.solve()
