@@ -74,8 +74,10 @@ FOOT_JOINT_IDS = {
 }
 
 
-def get_constraint_models(feet_names, Kp, Kd=50):
+def get_constraint_models(feet_names, Kp, Kd=None):
     rcms = []
+    if Kd is None:
+        Kd = 2 * np.sqrt(Kp)
 
     for fname in feet_names:
         fid = FOOT_FRAME_IDS[fname]
