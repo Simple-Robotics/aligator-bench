@@ -165,50 +165,53 @@ term_cost = aligator.QuadraticStateCost(space, nu, xref_up_stand, np.diag(Wx_ter
 
 problem = aligator.TrajOptProblem(xref, stages, term_cost)
 
-args = Args().parse_args()
+if __name__ == "__main__":
+    args = Args().parse_args()
 
-TOL = 1e-3
-MAX_ITER = 300
-match args.solver:
-    case "ali":
-        mu_init = 1e-2
-        solver = aligator.SolverProxDDP(TOL, mu_init)
-        solver.setup(problem)
-        solver.verbose = aligator.VERBOSE
-        solver.rollout_type = aligator.ROLLOUT_LINEAR
-        solver.max_iters = MAX_ITER
-        solver.run(problem, xs_init, us_init)
+    TOL = 1e-3
+    MAX_ITER = 300
+    match args.solver:
+        case "ali":
+            mu_init = 1e-2
+            solver = aligator.SolverProxDDP(TOL, mu_init)
+            solver.setup(problem)
+            solver.verbose = aligator.VERBOSE
+            solver.rollout_type = aligator.ROLLOUT_LINEAR
+            solver.max_iters = MAX_ITER
+            solver.run(problem, xs_init, us_init)
 
-        print(solver.results)
-        xs_opt = np.stack(solver.results.xs)
-        print("xs_opt.shape:", xs_opt.shape)
-        qs_opt = xs_opt[:, :nq]
-        us_opt = np.stack(solver.results.us)
-    case "ipopt":
-        from aligator_bench_pywrap import SolverIpopt
+            print(solver.results)
+            xs_opt = np.stack(solver.results.xs)
+            print("xs_opt.shape:", xs_opt.shape)
+            qs_opt = xs_opt[:, :nq]
+            us_opt = np.stack(solver.results.us)
+        case "ipopt":
+            from aligator_bench_pywrap import SolverIpopt
 
-        solver = SolverIpopt()
-        solver.setup(problem)
-        solver.setMaxIters(MAX_ITER)
-        solver.setOption("tol", TOL)
-        solver.solve()
-        xs_opt = np.stack(solver.xs)
-        qs_opt = xs_opt[:, :nq]
-        us_opt = np.stack(solver.us)
-times = np.linspace(0, tf, nsteps + 1)
+            solver = SolverIpopt()
+            solver.setup(problem)
+            solver.setMaxIters(MAX_ITER)
+            solver.setOption("tol", TOL)
+            solver.solve()
+            xs_opt = np.stack(solver.xs)
+            qs_opt = xs_opt[:, :nq]
+            us_opt = np.stack(solver.us)
+        case _:
+            raise ValueError("Solver not supported here")
+    times = np.linspace(0, tf, nsteps + 1)
 
-plotting.plot_controls_traj(
-    times, us_opt, effort_limit=rmodel.effortLimit, rmodel=rmodel
-)
-plt.show()
+    plotting.plot_controls_traj(
+        times, us_opt, effort_limit=rmodel.effortLimit, rmodel=rmodel
+    )
+    plt.show()
 
-viz = MeshcatVisualizer(
-    rmodel, visual_model=robot.visual_model, visual_data=robot.visual_data
-)
-viz.initViewer(open=True, loadModel=True)
+    viz = MeshcatVisualizer(
+        rmodel, visual_model=robot.visual_model, visual_data=robot.visual_data
+    )
+    viz.initViewer(open=True, loadModel=True)
 
-viz.display(q_standing)
-input("[enter]")
+    viz.display(q_standing)
+    input("[enter]")
 
-for i in range(4):
-    viz.play(qs_opt)
+    for i in range(4):
+        viz.play(qs_opt)
