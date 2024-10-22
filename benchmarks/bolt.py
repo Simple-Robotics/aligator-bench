@@ -2,7 +2,7 @@ import pinocchio as pin
 import numpy as np
 import aligator
 
-from pinocchio.visualize import MeshcatVisualizer
+from pinocchio.visualize.meshcat_visualizer import MeshcatVisualizer
 from aligator.dynamics import MultibodyConstraintFwdDynamics, IntegratorSemiImplEuler
 from aligator import manifolds
 from .common import Args
@@ -56,28 +56,30 @@ def get_default_pose():
     jid1 = rmodel.getJointId("FR_HAA")
     id0 = rmodel.idx_qs[jid0]
     id1 = rmodel.idx_qs[jid1]
-    q0[id0] *= 0.4
-    q0[id1] *= 0.4
+    q0[id0] *= 0.2
+    q0[id1] *= 0.2
     pin.forwardKinematics(rmodel, rdata, q0)
     pin.updateFramePlacement(rmodel, rdata, fr_foot_fid)
     q0[2] -= rdata.oMf[fr_foot_fid].translation[2]
-    pin.framesForwardKinematics(rmodel, rdata, q0)
-    return q0
+    q0[2] += 0.01
+    return q0.copy()
 
 
 q_standing = get_default_pose()
 
 viz = MeshcatVisualizer(rmodel, visual_model=robot.visual_model, data=rdata)
 
-FOOT_FRAME_IDS = {fname: rmodel.getFrameId(fname) for fname in ("FL_FOOT", "FR_FOOT")}
-
+FOOT_NAMES = ("FL_ANKLE", "FR_ANKLE")
+FOOT_FRAME_IDS = {fname: rmodel.getFrameId(fname) for fname in FOOT_NAMES}
 FOOT_JOINT_IDS = {
     fname: rmodel.frames[fid].parentJoint for fname, fid in FOOT_FRAME_IDS.items()
 }
 
 
-def get_constraint_models(feet_names, Kp=(0.0, 0.0, 1e2), Kd=50):
+def get_constraint_models(feet_names, Kp, Kd=None):
     rcms = []
+    if Kd is None:
+        Kd = 2 * np.sqrt(Kp)
 
     for fname in feet_names:
         fid = FOOT_FRAME_IDS[fname]
@@ -108,14 +110,15 @@ act_matrix = np.eye(nv, nu, -6)
 space = manifolds.MultibodyPhaseSpace(rmodel)
 ndx = space.ndx
 
-rcms1 = get_constraint_models(("FL_FOOT", "FR_FOOT"))
-rcms2 = get_constraint_models([])
+pin.framesForwardKinematics(rmodel, rdata, q_standing)
+rcms1 = get_constraint_models(FOOT_NAMES, 1e3)
+rcms2 = get_constraint_models([], 1e3)
 
 nsteps = 200
 dt = 20e-3
 tf = nsteps * dt
 
-prox_settings = pin.ProximalSettings(1e-8, 1e-10, 10)
+prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
 ode1 = MultibodyConstraintFwdDynamics(space, act_matrix, rcms1, prox_settings)
 ode2 = MultibodyConstraintFwdDynamics(space, act_matrix, rcms2, prox_settings)
 xref = np.concatenate((q_standing, np.zeros(nv)))
@@ -127,39 +130,34 @@ n0 = 80
 n1 = 110
 
 
+def get_target(i: int):
+    xtgt = xref.copy()
+    if n0 <= i < n1:
+        xtgt[2] *= 0.5
+    return xtgt
+
+
 stages = []
 for i in range(nsteps):
     rcost = aligator.CostStack(space, nu)
 
     Wx = np.ones(ndx)
-    _target = xref.copy()
-    _dyn = dyn1
-    # if n0 <= i < n1:
-    #     _dyn = dyn2
-    #     _target[2] = 0.3
     Wx = np.diag(Wx)
+    _target = get_target(i)
+    _dyn = dyn1
 
-    # for fname in ("FL_FOOT", "FR_FOOT"):
-    #     wrench_res = MultibodyWrenchConeResidual(
-    #         ndx,
-    #         rmodel,
-    #         act_matrix,
-    #         rcms1,
-    #         prox_settings,
-    #         fname,
-    #         mu=0.1,
-    #         half_length=0.2,
-    #         half_width=0.2,
-    #     )
-    #     wrench_cost = aligator.QuadraticResidualCost(
-    #         space, wrench_res, dt * np.eye(wrench_res.nr)
-    #     )
-    #     rcost.addCost(f"wrench_{fname}", wrench_cost, 1e-6)
-    scost = aligator.QuadraticStateCost(space, nu, _target, dt * Wx)
-    rcost.addCost("xreg", scost, 1.0)
+    rcost.addCost("xreg", aligator.QuadraticStateCost(space, nu, _target, dt * Wx), 1.0)
     rcost.addCost(
-        "ureg", aligator.QuadraticControlCost(space, nu, dt * np.eye(nu)), 1e-1
+        "ureg", aligator.QuadraticControlCost(space, nu, dt * np.eye(nu)), 1e-6
     )
+    grav_res = aligator.GravityCompensationResidual(ndx, act_matrix, rmodel)
+    assert grav_res.nr == rmodel.nv
+    u_grav_cost = aligator.QuadraticResidualCost(
+        space,
+        grav_res,
+        dt * np.eye(grav_res.nr),
+    )
+    rcost.addCost("ureg", u_grav_cost, 1e-1)
     stage = aligator.StageModel(rcost, _dyn)
     stages.append(stage)
 
@@ -168,10 +166,10 @@ problem = aligator.TrajOptProblem(xref, stages, term_cost)
 
 
 TOL = 1e-3
-MAX_ITER = 200
+MAX_ITER = 400
 match args.solver:
     case "ali":
-        mu_init = 10.0
+        mu_init = 1e-4
         solver = aligator.SolverProxDDP(TOL, mu_init)
         solver.rollout_type = aligator.ROLLOUT_LINEAR
         solver.verbose = aligator.VERBOSE
@@ -216,5 +214,5 @@ qs_opt = np.asarray(xs_opt)[:, :nq]
 
 input("[enter]")
 
+viz.setCameraPosition([1.0, 1.0, 0.6])
 viz.play(qs_opt, dt=dt)
-# viz.display(q_standing)
