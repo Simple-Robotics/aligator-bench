@@ -5,7 +5,12 @@ import contextlib
 
 from pinocchio.visualize.meshcat_visualizer import MeshcatVisualizer
 from aligator.dynamics import MultibodyConstraintFwdDynamics, IntegratorSemiImplEuler
-from aligator import constraints, manifolds, underactuatedConstrainedInverseDynamics
+from aligator import (
+    constraints,
+    manifolds,
+    underactuatedConstrainedInverseDynamics,
+    FrameTranslationResidual,
+)
 from .common import Args
 
 
@@ -109,25 +114,31 @@ act_matrix = np.eye(nv, nu, -6)
 space = manifolds.MultibodyPhaseSpace(rmodel)
 ndx = space.ndx
 
-rcms1 = get_constraint_models(FOOT_NAMES, 1e3)
-rcms2 = get_constraint_models(("FR_FOOT", "HL_FOOT", "HR_FOOT"), 1e3)
-
-tf = 3.0
+tf = 3.4
 dt = 0.01
 nsteps = int(tf / dt)
 print(f"nsteps = {nsteps}")
 
 prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
-ode1 = MultibodyConstraintFwdDynamics(space, act_matrix, rcms1, prox_settings)
-ode2 = MultibodyConstraintFwdDynamics(space, act_matrix, rcms2, prox_settings)
+
+
+def get_contact_dynamics_phase(feet_names, prox_settings=prox_settings):
+    rcm = get_constraint_models(feet_names, 1e3)
+    ode = MultibodyConstraintFwdDynamics(space, act_matrix, rcm, prox_settings)
+    dyn = IntegratorSemiImplEuler(ode, dt)
+    return dyn, rcm
+
+
 v0 = np.zeros(nv)
 xref = np.concatenate((q_standing, v0))
+
+dyn1, rcms1 = get_contact_dynamics_phase(FOOT_NAMES)
+dyn2, rcms2 = get_contact_dynamics_phase(("FR_FOOT", "HL_FOOT", "HR_FOOT"))
+dyn3, rcms3 = get_contact_dynamics_phase(("FR_FOOT", "HR_FOOT"))
+dyn4, rcms4 = get_contact_dynamics_phase(("FR_FOOT", "HL_FOOT", "HR_FOOT"))
 u0, _ = underactuatedConstrainedInverseDynamics(
     rmodel, rdata, q_standing, v0, act_matrix, rcms1, [cm.createData() for cm in rcms1]
 )
-
-dyn1 = IntegratorSemiImplEuler(ode1, dt)
-dyn2 = IntegratorSemiImplEuler(ode2, dt)
 
 xs_init = [xref] * (nsteps + 1)
 us_init = [u0] * nsteps
@@ -150,13 +161,24 @@ def create_target(ti: float):
 
 
 def ee_fl_foot_xres():
-    from aligator import FrameTranslationResidual
-
     fid = FOOT_FRAME_IDS["FL_FOOT"]
-    fres = FrameTranslationResidual(ndx, nu, rmodel, np.zeros(3), fid)[0]
+    ftgt = np.zeros(3)
+    ftgt[0] = -0.1
+    fres = FrameTranslationResidual(ndx, nu, rmodel, ftgt, fid)[0]
     return fres
 
 
+def ee_fl_foot_zres():
+    fid = FOOT_FRAME_IDS["FL_FOOT"]
+    ftgt = np.zeros(3)
+    fres = FrameTranslationResidual(ndx, nu, rmodel, ftgt, fid)[2]
+    return fres
+
+
+_t1 = 2.0
+_t2 = 2.4
+_t3 = 2.7
+_t4 = 3.1
 stages = []
 for i in range(nsteps):
     rcost = aligator.CostStack(space, nu)
@@ -164,8 +186,16 @@ for i in range(nsteps):
 
     _target = create_target(ti)
     _dyn = dyn1
-    if ti >= 2.0:
+    _constraints = []
+    if ti >= _t1:
         _dyn = dyn2
+    if ti >= _t2:
+        fres = ee_fl_foot_xres()
+        _constraints.append((fres, constraints.NegativeOrthant()))
+    if ti >= _t3:
+        _dyn = dyn3
+    if ti >= _t4:
+        _dyn = dyn4
     Wx = 1e-2 * np.ones(ndx)
     Wx[[2, 4]] = 2.0
     Wx = np.diag(Wx)
@@ -175,9 +205,8 @@ for i in range(nsteps):
         "ureg", aligator.QuadraticControlCost(space, nu, np.eye(nu)), 1e-1 * dt
     )
     stage = aligator.StageModel(rcost, _dyn)
-    if ti >= 2.5:
-        fres = ee_fl_foot_xres()
-        stage.addConstraint(fres, constraints.NegativeOrthant())
+    for c, s in _constraints:
+        stage.addConstraint(c, s)
     stages.append(stage)
 
 xterm = xref.copy()
