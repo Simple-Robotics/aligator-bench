@@ -11,10 +11,6 @@ from aligator import (
     underactuatedConstrainedInverseDynamics,
     FrameTranslationResidual,
 )
-from .common import Args
-
-
-args = Args().parse_args()
 
 
 def load_solo12(verbose=False):
@@ -218,63 +214,68 @@ term_cost = aligator.QuadraticStateCost(space, nu, xterm, np.diag(Wx_term))
 problem = aligator.TrajOptProblem(xref, stages, term_cost)
 
 
-TOL = 1e-3
-MAX_ITER = 200
-match args.solver:
-    case "ali":
-        mu_init = 1e-4
-        solver = aligator.SolverProxDDP(TOL, mu_init)
-        solver.rollout_type = aligator.ROLLOUT_LINEAR
-        solver.verbose = aligator.VERBOSE
-        solver.max_iters = MAX_ITER
-        solver.setup(problem)
-        # solver.run(problem, xs_init, us_init)
-        solver.run(problem)
+if __name__ == "__main__":
+    from .common import Args
 
-        results = solver.results
-        print(results)
-        xs_opt = results.xs
-    case "ipopt":
-        from aligator_bench_pywrap import SolverIpopt
+    args = Args().parse_args()
 
-        solver = SolverIpopt()
-        solver.setup(problem, True)
-        # solver.setInitialGuess(xs_init, us_init)
-        solver.setOption("tol", TOL)
-        solver.setMaxIters(MAX_ITER)
-        solver.solve()
-        xs_opt = solver.xs.tolist()
-    case "altro":
-        from aligator_bench_pywrap import (
-            ALTROSolver,
-            AltroVerbosity,
-            initAltroFromAligatorProblem,
-        )
+    TOL = 1e-3
+    MAX_ITER = 200
+    match args.solver:
+        case "ali":
+            mu_init = 1e-4
+            solver = aligator.SolverProxDDP(TOL, mu_init)
+            solver.rollout_type = aligator.ROLLOUT_LINEAR
+            solver.verbose = aligator.VERBOSE
+            solver.max_iters = MAX_ITER
+            solver.setup(problem)
+            # solver.run(problem, xs_init, us_init)
+            solver.run(problem)
 
-        _altrosolver: ALTROSolver = initAltroFromAligatorProblem(problem)
-        init_code = _altrosolver.Initialize()
-        _altro_opts = _altrosolver.GetOptions()
-        _altro_opts.iterations_max = MAX_ITER
-        _altro_opts.tol_cost = 1e-16
-        _altro_opts.tol_primal_feasibility = TOL
-        _altro_opts.tol_stationarity = TOL
-        _altro_opts.verbose = AltroVerbosity.Inner
-        _altro_opts.use_backtracking_linesearch = True
-        _altrosolver.Solve()
-        xs_opt = _altrosolver.GetAllStates().tolist()
+            results = solver.results
+            print(results)
+            xs_opt = results.xs
+        case "ipopt":
+            from aligator_bench_pywrap import SolverIpopt
 
-viz.initViewer(open=True, loadModel=True)
+            solver = SolverIpopt()
+            solver.setup(problem, True)
+            # solver.setInitialGuess(xs_init, us_init)
+            solver.setOption("tol", TOL)
+            solver.setMaxIters(MAX_ITER)
+            solver.solve()
+            xs_opt = solver.xs.tolist()
+        case "altro":
+            from aligator_bench_pywrap import (
+                ALTROSolver,
+                AltroVerbosity,
+                initAltroFromAligatorProblem,
+            )
 
-qs_opt = np.asarray(xs_opt)[:, :nq]
+            _altrosolver: ALTROSolver = initAltroFromAligatorProblem(problem)
+            init_code = _altrosolver.Initialize()
+            _altro_opts = _altrosolver.GetOptions()
+            _altro_opts.iterations_max = MAX_ITER
+            _altro_opts.tol_cost = 1e-16
+            _altro_opts.tol_primal_feasibility = TOL
+            _altro_opts.tol_stationarity = TOL
+            _altro_opts.verbose = AltroVerbosity.Inner
+            _altro_opts.use_backtracking_linesearch = True
+            _altrosolver.Solve()
+            xs_opt = _altrosolver.GetAllStates().tolist()
 
-input("[enter]")
+    viz.initViewer(open=True, loadModel=True)
 
-viz.setCameraPosition([0.5, 0.5, 0.5])
-ctx = (
-    viz.create_video_ctx("solo12_lift_paw.mp4")
-    if args.record
-    else contextlib.nullcontext()
-)
-with ctx:
-    viz.play(qs_opt, dt=dt)
-# viz.display(q_standing)
+    qs_opt = np.asarray(xs_opt)[:, :nq]
+
+    input("[enter]")
+
+    viz.setCameraPosition([0.5, 0.5, 0.5])
+    ctx = (
+        viz.create_video_ctx("solo12_lift_paw.mp4")
+        if args.record
+        else contextlib.nullcontext()
+    )
+    with ctx:
+        viz.play(qs_opt, dt=dt)
+    # viz.display(q_standing)
