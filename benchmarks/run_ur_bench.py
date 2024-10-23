@@ -12,9 +12,9 @@ np.random.seed(42)
 rmodel = URProblem.robot.model
 default_ee_target = get_default_config_ee_pose(rmodel, URProblem.EE_NAME)
 
+num_instances = 5
 instance_configs = []
-
-for i in range(4):
+for i in range(num_instances):
     s = np.random.uniform(0.1, 0.95)
     th = np.random.uniform(0, 2 * np.pi)
     _zaxis = np.array([0.0, 0.0, 1.0])

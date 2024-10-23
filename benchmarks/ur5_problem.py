@@ -18,20 +18,19 @@ def get_default_config_ee_pose(rmodel: pin.Model, ee_name: str):
 
 class URProblem(object):
     robot = erd.load("ur5")
+    rmodel = robot.model
     EE_NAME = "tool0"
 
     def __init__(self, vel_constraint=False, ee_target=None):
-        rmodel: pin.Model = self.robot.model.copy()
-        q0 = pin.neutral(rmodel)
+        q0 = pin.neutral(self.rmodel)
 
         if ee_target is None:
-            ee_target = 0.7 * get_default_config_ee_pose(rmodel, self.EE_NAME)
+            ee_target = 0.7 * get_default_config_ee_pose(self.rmodel, self.EE_NAME)
 
         self.problem, self.times = self._build_problem(
-            rmodel, q0, vel_constraint, ee_target, self.EE_NAME
+            self.rmodel, q0, vel_constraint, ee_target, self.EE_NAME
         )
         self._vel_constraint = vel_constraint
-        self.rmodel = rmodel
 
     def name(self):
         return "UR5 Reach"
