@@ -93,13 +93,13 @@ if __name__ == "__main__":
         plot: bool = False
 
     args = Args().parse_args()
-    ur_problem = URProblem(True)
+    ur_problem = URProblem(vel_constraint=True)
     rmodel = ur_problem.rmodel
     nq = rmodel.nq
     times_ = ur_problem.times
 
     TOL = 1e-3
-    mu_init = 1e1
+    mu_init = 1.0
 
     MAX_ITER = 400
     alirunner = ProxDdpRunner(
@@ -126,7 +126,7 @@ if __name__ == "__main__":
             "verbose": True,
             "max_iters": MAX_ITER,
             "mu_init": mu_init,
-            "tol_stationarity": mu_init,
+            "tol_stationarity": 1e-4,
         }
     )
     altro_res = altrorunner.solve(ur_problem, TOL)
