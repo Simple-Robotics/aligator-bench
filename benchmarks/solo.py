@@ -14,12 +14,7 @@ from aligator import (
 from .common import load_solo12
 
 
-robot = load_solo12()
-rmodel: pin.Model = robot.model
-rdata: pin.Data = robot.data
-
-
-def get_default_pose():
+def get_default_pose(rmodel, rdata):
     q0 = rmodel.referenceConfigurations["standing"].copy()
     fr_foot_fid = rmodel.getFrameId("FR_FOOT")
     pin.forwardKinematics(rmodel, rdata, q0)
@@ -30,10 +25,8 @@ def get_default_pose():
     return q0
 
 
-q_standing = get_default_pose()
-
-viz = MeshcatVisualizer(rmodel, visual_model=robot.visual_model, data=rdata)
-
+robot = load_solo12()
+rmodel: pin.Model = robot.model
 FOOT_NAMES = ("FL_FOOT", "FR_FOOT", "HL_FOOT", "HR_FOOT")
 FOOT_FRAME_IDS = {fname: rmodel.getFrameId(fname) for fname in FOOT_NAMES}
 FOOT_JOINT_IDS = {
@@ -41,7 +34,7 @@ FOOT_JOINT_IDS = {
 }
 
 
-def get_constraint_models(feet_names, Kp, Kd=None):
+def get_constraint_models(rmodel, feet_names, Kp, Kd=None):
     rcms = []
     if Kd is None:
         Kd = 2 * np.sqrt(Kp)
@@ -68,121 +61,138 @@ def get_constraint_models(feet_names, Kp, Kd=None):
     return rcms
 
 
-nq = rmodel.nq
-nv = rmodel.nv
-nu = nv - 6  # not fully actuated
-act_matrix = np.eye(nv, nu, -6)
-space = manifolds.MultibodyPhaseSpace(rmodel)
-ndx = space.ndx
-
 tf = 3.4
 dt = 0.01
 nsteps = int(tf / dt)
 print(f"nsteps = {nsteps}")
 
-prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
+
+nq = rmodel.nq
+nv = rmodel.nv
+nu = nv - 6  # not fully actuated
+rdata: pin.Data = robot.data
 
 
-def get_contact_dynamics_phase(feet_names, prox_settings=prox_settings):
-    rcm = get_constraint_models(feet_names, 1e3)
-    ode = MultibodyConstraintFwdDynamics(space, act_matrix, rcm, prox_settings)
-    dyn = IntegratorSemiImplEuler(ode, dt)
-    return dyn, rcm
+class SoloYoga(object):
+    def __init__(self):
+        self.q_standing = get_default_pose(rmodel, rdata)
+        self.v0 = np.zeros(nv)
+        self.xref = np.concatenate((self.q_standing, self.v0))
+        self._build_problem(rmodel)
 
+    def _build_problem(self, rmodel: pin.Model):
+        space = manifolds.MultibodyPhaseSpace(rmodel)
+        ndx = space.ndx
+        prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
+        act_matrix = np.eye(nv, nu, -6)
 
-v0 = np.zeros(nv)
-xref = np.concatenate((q_standing, v0))
+        def get_contact_dynamics_phase(feet_names):
+            rcm = get_constraint_models(rmodel, feet_names, 1e3)
+            ode = MultibodyConstraintFwdDynamics(space, act_matrix, rcm, prox_settings)
+            dyn = IntegratorSemiImplEuler(ode, dt)
+            return dyn, rcm
 
-dyn1, rcms1 = get_contact_dynamics_phase(FOOT_NAMES)
-dyn2, rcms2 = get_contact_dynamics_phase(("FR_FOOT", "HL_FOOT", "HR_FOOT"))
-dyn3, rcms3 = get_contact_dynamics_phase(("FR_FOOT", "HR_FOOT"))
-dyn4, rcms4 = get_contact_dynamics_phase(("FR_FOOT", "HL_FOOT", "HR_FOOT"))
-u0, _ = underactuatedConstrainedInverseDynamics(
-    rmodel, rdata, q_standing, v0, act_matrix, rcms1, [cm.createData() for cm in rcms1]
-)
+        dyn1, rcms1 = get_contact_dynamics_phase(FOOT_NAMES)
+        dyn2, rcms2 = get_contact_dynamics_phase(("FR_FOOT", "HL_FOOT", "HR_FOOT"))
+        dyn3, rcms3 = get_contact_dynamics_phase(("FR_FOOT", "HR_FOOT"))
+        dyn4, rcms4 = get_contact_dynamics_phase(("FR_FOOT", "HL_FOOT", "HR_FOOT"))
+        u0, _ = underactuatedConstrainedInverseDynamics(
+            rmodel,
+            rdata,
+            self.q_standing,
+            self.v0,
+            act_matrix,
+            rcms1,
+            [cm.createData() for cm in rcms1],
+        )
 
-xs_init = [xref] * (nsteps + 1)
-us_init = [u0] * nsteps
-print(f"xref = {xref}")
+        def create_target(ti: float):
+            xtgt = self.xref.copy()
+            freq = 3.0
+            phas = freq * ti
+            amp = xtgt[2] * 1.1
+            xtgt[2] += amp * np.sin(phas)
 
+            if 1.0 <= ti < 1.5:
+                xtgt[4] = np.deg2rad(30)
+            if 1.5 <= ti:
+                xtgt[4] = np.deg2rad(-20)
 
-def create_target(ti: float):
-    xtgt = xref.copy()
-    freq = 3.0
-    phas = freq * ti
-    amp = xtgt[2] * 1.1
-    xtgt[2] += amp * np.sin(phas)
+            return xtgt
 
-    if 1.0 <= ti < 1.5:
-        xtgt[4] = np.deg2rad(30)
-    if 1.5 <= ti:
-        xtgt[4] = np.deg2rad(-20)
+        def ee_fl_foot_xres():
+            fid = FOOT_FRAME_IDS["FL_FOOT"]
+            ftgt = np.zeros(3)
+            ftgt[0] = -0.1
+            fres = FrameTranslationResidual(ndx, nu, rmodel, ftgt, fid)[0]
+            return fres
 
-    return xtgt
+        def ee_fl_foot_zres():
+            fid = FOOT_FRAME_IDS["FL_FOOT"]
+            ftgt = np.zeros(3)
+            fres = FrameTranslationResidual(ndx, nu, rmodel, ftgt, fid)[2]
+            return fres
 
+        _t1 = 2.0
+        _t2 = 2.4
+        _t3 = 2.7
+        _t4 = 3.2
+        stages = []
+        for i in range(nsteps):
+            rcost = aligator.CostStack(space, nu)
+            ti = dt * i
 
-def ee_fl_foot_xres():
-    fid = FOOT_FRAME_IDS["FL_FOOT"]
-    ftgt = np.zeros(3)
-    ftgt[0] = -0.1
-    fres = FrameTranslationResidual(ndx, nu, rmodel, ftgt, fid)[0]
-    return fres
+            _target = create_target(ti)
+            _dyn = dyn1
+            _constraints = []
+            if ti >= _t1:
+                _dyn = dyn2
+            if ti >= _t2:
+                fres = ee_fl_foot_xres()
+                _constraints.append((fres, constraints.NegativeOrthant()))
+            if ti >= _t3:
+                _dyn = dyn3
+            if ti >= _t4:
+                _dyn = dyn4
+            Wx = 1e-2 * np.ones(ndx)
+            Wx[[2, 4]] = 2.0
+            Wx = np.diag(Wx)
 
+            rcost.addCost(
+                "xreg", aligator.QuadraticStateCost(space, nu, _target, Wx), dt
+            )
+            rcost.addCost(
+                "ureg", aligator.QuadraticControlCost(space, nu, np.eye(nu)), 1e-1 * dt
+            )
+            stage = aligator.StageModel(rcost, _dyn)
+            for c, s in _constraints:
+                stage.addConstraint(c, s)
+            stages.append(stage)
 
-def ee_fl_foot_zres():
-    fid = FOOT_FRAME_IDS["FL_FOOT"]
-    ftgt = np.zeros(3)
-    fres = FrameTranslationResidual(ndx, nu, rmodel, ftgt, fid)[2]
-    return fres
-
-
-_t1 = 2.0
-_t2 = 2.4
-_t3 = 2.7
-_t4 = 3.1
-stages = []
-for i in range(nsteps):
-    rcost = aligator.CostStack(space, nu)
-    ti = dt * i
-
-    _target = create_target(ti)
-    _dyn = dyn1
-    _constraints = []
-    if ti >= _t1:
-        _dyn = dyn2
-    if ti >= _t2:
-        fres = ee_fl_foot_xres()
-        _constraints.append((fres, constraints.NegativeOrthant()))
-    if ti >= _t3:
-        _dyn = dyn3
-    if ti >= _t4:
-        _dyn = dyn4
-    Wx = 1e-2 * np.ones(ndx)
-    Wx[[2, 4]] = 2.0
-    Wx = np.diag(Wx)
-
-    rcost.addCost("xreg", aligator.QuadraticStateCost(space, nu, _target, Wx), dt)
-    rcost.addCost(
-        "ureg", aligator.QuadraticControlCost(space, nu, np.eye(nu)), 1e-1 * dt
-    )
-    stage = aligator.StageModel(rcost, _dyn)
-    for c, s in _constraints:
-        stage.addConstraint(c, s)
-    stages.append(stage)
-
-xterm = xref.copy()
-Wx_term = 1e-1 * np.ones(ndx)
-Wx_term[[4, 5]] = 4.0
-xterm[4] = np.deg2rad(-25)
-xterm[5] = np.deg2rad(20)
-term_cost = aligator.QuadraticStateCost(space, nu, xterm, np.diag(Wx_term))
-problem = aligator.TrajOptProblem(xref, stages, term_cost)
+        xterm = self.xref.copy()
+        Wx_term = 1e-1 * np.ones(ndx)
+        Wx_term[[4, 5]] = 4.0
+        xterm[4] = np.deg2rad(-25)
+        xterm[5] = np.deg2rad(20)
+        term_cost = aligator.QuadraticStateCost(space, nu, xterm, np.diag(Wx_term))
+        problem = aligator.TrajOptProblem(self.xref, stages, term_cost)
+        self.problem = problem
+        self.u0 = u0
+        self.times = np.linspace(0, tf, nsteps + 1)
 
 
 if __name__ == "__main__":
     from .common import Args
 
     args = Args().parse_args()
+    example = SoloYoga()
+    problem = example.problem
+    u0 = example.u0
+    nq = rmodel.nq
+    xref = example.xref
+
+    xs_init = [xref] * (nsteps + 1)
+    us_init = [u0] * nsteps
 
     TOL = 1e-3
     MAX_ITER = 200
@@ -229,6 +239,7 @@ if __name__ == "__main__":
             _altrosolver.Solve()
             xs_opt = _altrosolver.GetAllStates().tolist()
 
+    viz = MeshcatVisualizer(rmodel, visual_model=robot.visual_model, data=rdata)
     viz.initViewer(open=True, loadModel=True)
 
     qs_opt = np.asarray(xs_opt)[:, :nq]
@@ -243,4 +254,3 @@ if __name__ == "__main__":
     )
     with ctx:
         viz.play(qs_opt, dt=dt)
-    # viz.display(q_standing)
