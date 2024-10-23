@@ -28,6 +28,7 @@ void exposeIpoptSolver() {
       .def(
           "setPrintLevel",
           +[](SolverIpopt &s, int level) { s.setOption("print_level", level); })
+      .def("setAbsTol", &SolverIpopt::setAbsTol, ("self"_a, "tol"))
 #define _c(name)                                                               \
   add_property(#name, bp::make_function(&SolverIpopt::name,                    \
                                         bp::return_internal_reference<>()))

@@ -147,7 +147,7 @@ class IpoptRunner:
         self._solver = solver = SolverIpopt()
         p: TrajOptProblem = example.problem
         solver.setup(p)
-        solver.setOption("tol", tol)
+        solver.setAbsTol(tol)
         for param, value in self._settings.items():
             if param == "max_iters":
                 solver.setMaxIters(value)

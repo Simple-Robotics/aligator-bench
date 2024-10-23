@@ -93,4 +93,11 @@ void SolverIpopt::setInitialGuess(VectorOfVectors xs, VectorOfVectors us) {
   pi.xs_ = std::move(xs);
   pi.us_ = std::move(us);
 }
+
+void SolverIpopt::setAbsTol(double tol) {
+  setOption("tol", tol);
+  setOption("dual_inf_tol", tol);
+  setOption("constr_viol_tol", tol);
+  setOption("compl_inf_tol", tol);
+}
 } // namespace aligator_bench
