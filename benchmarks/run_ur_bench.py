@@ -1,9 +1,9 @@
 import numpy as np
 import pinocchio as pin
-import dataclasses
 import polars
 from .ur5_problem import URProblem, get_default_config_ee_pose
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner
+from .bench_runner import run_benchmark_configs
 
 SEED = 42
 np.random.seed(42)
@@ -39,24 +39,9 @@ for _, settings in SOLVERS:
     settings["max_iters"] = MAX_ITERS
 
 
-data_ = []
-
-
-for i, config in enumerate(instance_configs):
-    example = URProblem(**config)
-    for runner_cls, settings in SOLVERS:
-        runner = runner_cls(settings)
-        entry = {"name": runner.name()}
-        print(runner.name(), settings)
-        print(example.name(), config)
-        res = runner.solve(example, TOL)
-        print(res)
-        print("-------")
-        entry.update(dataclasses.asdict(res))
-        instance_name = example.name() + f"_{i}"
-        entry["instance"] = instance_name
-        data_.append(entry)
-
+data_ = run_benchmark_configs(
+    cls=URProblem, tol=TOL, instance_configs=instance_configs, solver_configs=SOLVERS
+)
 
 df_ = polars.DataFrame(data_)
 with polars.Config(tbl_rows=-1):
