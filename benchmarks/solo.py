@@ -74,13 +74,17 @@ rdata: pin.Data = robot.data
 
 
 class SoloYoga(object):
-    def __init__(self):
+    def __init__(self, dip_angle, twist_angle=20):
         self.q_standing = get_default_pose(rmodel, rdata)
         self.v0 = np.zeros(nv)
         self.xref = np.concatenate((self.q_standing, self.v0))
-        self._build_problem(rmodel)
+        dip_angle_rad = np.deg2rad(dip_angle)
+        self._build_problem(rmodel, dip_angle_rad)
 
-    def _build_problem(self, rmodel: pin.Model):
+    def name(self):
+        return "Solo_Yoga"
+
+    def _build_problem(self, rmodel: pin.Model, dip_angle):
         space = manifolds.MultibodyPhaseSpace(rmodel)
         ndx = space.ndx
         prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
@@ -114,7 +118,7 @@ class SoloYoga(object):
             xtgt[2] += amp * np.sin(phas)
 
             if 1.0 <= ti < 1.5:
-                xtgt[4] = np.deg2rad(30)
+                xtgt[4] = dip_angle
             if 1.5 <= ti:
                 xtgt[4] = np.deg2rad(-20)
 
@@ -155,7 +159,8 @@ class SoloYoga(object):
             if ti >= _t4:
                 _dyn = dyn4
             Wx = 1e-2 * np.ones(ndx)
-            Wx[[2, 4]] = 2.0
+            Wx[2] = 2.0
+            Wx[4] = 2.0
             Wx = np.diag(Wx)
 
             rcost.addCost(
@@ -171,9 +176,8 @@ class SoloYoga(object):
 
         xterm = self.xref.copy()
         Wx_term = 1e-1 * np.ones(ndx)
-        Wx_term[[4, 5]] = 4.0
+        Wx_term[4] = 4.0
         xterm[4] = np.deg2rad(-25)
-        xterm[5] = np.deg2rad(20)
         term_cost = aligator.QuadraticStateCost(space, nu, xterm, np.diag(Wx_term))
         problem = aligator.TrajOptProblem(self.xref, stages, term_cost)
         self.problem = problem
@@ -185,7 +189,7 @@ if __name__ == "__main__":
     from .common import Args
 
     args = Args().parse_args()
-    example = SoloYoga()
+    example = SoloYoga(dip_angle=40)
     problem = example.problem
     u0 = example.u0
     nq = rmodel.nq
