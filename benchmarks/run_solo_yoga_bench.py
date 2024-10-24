@@ -3,7 +3,7 @@ import aligator
 
 from .solo import SoloYoga
 from .solver_runner import ProxDdpRunner, IpoptRunner
-from .bench_runner import SolverConfig, run_benchmark_configs
+from .bench_runner import SolverConfig, run_benchmark_configs, save_run
 
 
 TOL = 1e-3
@@ -27,10 +27,11 @@ for _, settings in SOLVERS:
     settings["max_iters"] = MAX_ITERS
 
 
-data = run_benchmark_configs(
+df = run_benchmark_configs(
     SoloYoga, TOL, instance_configs=instances, solver_configs=SOLVERS
 )
 
-df = polars.DataFrame(data)
 with polars.Config(tbl_rows=-1):
     print(df)
+
+save_run(df, "solo_yoga")
