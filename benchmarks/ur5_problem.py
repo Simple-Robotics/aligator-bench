@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     args = Args().parse_args()
     np.random.seed(42)
-    ur_problem = URProblem(ee_target=generate_random_ee_target())
+    ur_problem = URProblem(True, ee_target=generate_random_ee_target())
     rmodel = ur_problem.rmodel
     nq = rmodel.nq
     times_ = ur_problem.times
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     MAX_ITER = 400
     alirunner = ProxDdpRunner(
         {
-            "rollout_type": aligator.ROLLOUT_NONLINEAR,
+            "rollout_type": aligator.ROLLOUT_LINEAR,
             "verbose": True,
             "max_iters": MAX_ITER,
             "mu_init": mu_init,
