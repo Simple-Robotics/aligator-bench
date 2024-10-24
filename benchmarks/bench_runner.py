@@ -3,8 +3,10 @@ import polars as pl
 
 from typing import Type, Tuple
 from .solver_runner import status_dtype
+from pathlib import Path
 
 SolverConfig = Tuple[Type, dict]
+RESULTS_DIR = Path("results/")
 
 
 def run_benchmark_configs(
@@ -31,3 +33,7 @@ def run_benchmark_configs(
     df = df.with_columns(status=pl.col("status_old").cast(status_dtype))
     df.drop_in_place("status_old")
     return df
+
+
+def save_run(df: pl.DataFrame, bench_name):
+    df.write_csv(RESULTS_DIR / f"{bench_name}.csv")
