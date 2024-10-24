@@ -121,7 +121,7 @@ class AltroRunner:
             if param == "tol_stationarity":
                 altro_opts.tol_stationarity = value
             if param == "mu_init":
-                altro_opts.penalty_initial = value
+                altro_opts.penalty_initial = 1 / value
 
         solver_code = altro_solver.Solve()
         match solver_code:
