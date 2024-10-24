@@ -43,7 +43,10 @@ class URProblem(object):
         self._vel_constraint = vel_constraint
 
     def name(self):
-        return "UR5 Reach"
+        s = "UR5_Reach"
+        if self._vel_constraint:
+            s += "_vel_bound"
+        return s
 
     @staticmethod
     def _build_problem(rmodel: pin.Model, q0, vel_constraint, ee_target, ee_name: int):
