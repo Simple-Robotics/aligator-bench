@@ -3,6 +3,7 @@
 
 #include <IpIpoptApplication.hpp>
 #include <IpIpoptData.hpp>
+#include <IpSolveStatistics.hpp>
 #include <IpIpoptCalculatedQuantities.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 
@@ -66,6 +67,10 @@ Ipopt::ApplicationReturnStatus SolverIpopt::solve() {
       pip_cq->unscaled_curr_complementarity(0., ENormType::NORM_MAX);
 
   return status;
+}
+
+double SolverIpopt::totalSolveTime() const {
+  return ipopt_app_->Statistics()->TotalWallclockTime();
 }
 
 const VectorOfVectors &SolverIpopt::xs() const {

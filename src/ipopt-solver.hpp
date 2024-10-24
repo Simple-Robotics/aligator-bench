@@ -37,6 +37,8 @@ struct SolverIpopt {
 
   Ipopt::ApplicationReturnStatus solve();
 
+  double totalSolveTime() const;
+
   std::unique_ptr<Ipopt::IpoptApplication> ipopt_app_;
   Ipopt::SmartPtr<Ipopt::TNLP> adapter_;
 
