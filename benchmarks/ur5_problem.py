@@ -16,6 +16,16 @@ def get_default_config_ee_pose(rmodel: pin.Model, ee_name: str):
     return M_tool_q0.translation.copy()
 
 
+def generate_random_ee_target():
+    default_ee_target = get_default_config_ee_pose(URProblem.rmodel, URProblem.EE_NAME)
+    s = np.random.uniform(0.1, 0.95)
+    th = np.random.uniform(0, 2 * np.pi)
+    _zaxis = np.array([0.0, 0.0, 1.0])
+    _R = pin.exp3(th * _zaxis)
+    ee_target = s * _R @ default_ee_target
+    return ee_target
+
+
 class URProblem(object):
     robot = erd.load("ur5")
     rmodel = robot.model
@@ -93,7 +103,8 @@ if __name__ == "__main__":
         plot: bool = False
 
     args = Args().parse_args()
-    ur_problem = URProblem(vel_constraint=True)
+    np.random.seed(42)
+    ur_problem = URProblem(ee_target=generate_random_ee_target())
     rmodel = ur_problem.rmodel
     nq = rmodel.nq
     times_ = ur_problem.times
@@ -104,10 +115,11 @@ if __name__ == "__main__":
     MAX_ITER = 400
     alirunner = ProxDdpRunner(
         {
-            "rollout_type": aligator.ROLLOUT_LINEAR,
+            "rollout_type": aligator.ROLLOUT_NONLINEAR,
             "verbose": True,
             "max_iters": MAX_ITER,
             "mu_init": mu_init,
+            "default_start": True,
         }
     )
     alirunner.solve(ur_problem, TOL)
@@ -126,7 +138,7 @@ if __name__ == "__main__":
             "verbose": True,
             "max_iters": MAX_ITER,
             "mu_init": mu_init,
-            "tol_stationarity": 1e-4,
+            "tol_stationarity": 1e-5,
         }
     )
     altro_res = altrorunner.solve(ur_problem, TOL)
@@ -145,6 +157,13 @@ if __name__ == "__main__":
     # xs_ipo = ipsolve.xs.tolist()
     # us_ipo = ipsolve.us.tolist()
     # vs_ipo = [x[nq:] for x in xs_ipo]
+
+    def check_altro_sol():
+        pd = alisolver.workspace.problem_data
+        altro_sol_cost = ur_problem.problem.evaluate(xs_altro, us_altro, pd)
+        print(f"Reeavaluate ALTRO sol cost: {altro_sol_cost}")
+
+    check_altro_sol()
 
     if args.plot:
         fig1, axes1 = aligator.utils.plotting.plot_controls_traj(times_, us_ali)
