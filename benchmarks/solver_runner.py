@@ -23,6 +23,7 @@ class Result:
     niter: int
     prim_feas: float
     dual_feas: float
+    solve_time_s: float
 
 
 def default_initialize_rollout(prob: TrajOptProblem):
@@ -36,6 +37,8 @@ class ProxDdpRunner:
         self._settings = settings
 
     def solve(self, example, tol: float) -> Result:
+        import time
+
         prob: TrajOptProblem = example.problem
         solver = SolverProxDDP(tol)
         solver.mu_init = self._settings["mu_init"]  # required param
@@ -61,7 +64,9 @@ class ProxDdpRunner:
         solver.setup(prob)
         results: aligator.Results = solver.results
         try:
+            _start_time = time.time()
             conv = solver.run(prob, xs_init, us_init)
+            _elapsed_time = time.time() - _start_time
             if conv:
                 status = Status.CONVERGED
             elif results.num_iters == solver.max_iters:
@@ -77,6 +82,7 @@ class ProxDdpRunner:
             results.num_iters,
             results.primal_infeas,
             results.dual_infeas,
+            _elapsed_time,
         )
 
     @staticmethod
@@ -105,6 +111,7 @@ class AltroRunner:
             ErrorCodes,
             initAltroFromAligatorProblem,
         )
+        import time
 
         p: TrajOptProblem = example.problem
         altro_solver = initAltroFromAligatorProblem(p)
@@ -129,7 +136,9 @@ class AltroRunner:
             if param == "mu_init":
                 altro_opts.penalty_initial = 1 / value
 
+        _start_time = time.time()
         solver_code = altro_solver.Solve()
+        _elapsed_time = time.time() - _start_time
         match solver_code:
             case SolveStatus.Success:
                 status = Status.CONVERGED
@@ -145,6 +154,8 @@ class AltroRunner:
             altro_solver.GetIterations(),
             altro_solver.GetPrimalFeasibility(),
             altro_solver.GetStationarity(),
+            # altro_solver.GetSolveTimeMs(),
+            _elapsed_time,
         )
 
     @property
@@ -192,6 +203,7 @@ class IpoptRunner:
             solver.num_iter,
             max(solver.cstr_violation, solver.complementarity),
             solver.dual_infeas,
+            solver.totalSolveTime(),
         )
 
     @property
