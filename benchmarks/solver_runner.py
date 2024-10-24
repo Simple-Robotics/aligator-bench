@@ -1,4 +1,6 @@
 import aligator
+import numpy as np
+
 from aligator import SolverProxDDP, TrajOptProblem
 from enum import Enum, auto
 from dataclasses import dataclass
@@ -19,6 +21,12 @@ class Result:
     dual_feas: float
 
 
+def default_initialize_rollout(prob: TrajOptProblem):
+    us_init = [np.zeros(s.nu) for s in prob.stages]
+    xs_init = aligator.rollout([s.dynamics for s in prob.stages], prob.x0_init, us_init)
+    return xs_init, us_init
+
+
 class ProxDdpRunner:
     def __init__(self, settings={}):
         self._settings = settings
@@ -27,21 +35,27 @@ class ProxDdpRunner:
         prob: TrajOptProblem = example.problem
         solver = SolverProxDDP(tol)
         solver.mu_init = self._settings["mu_init"]  # required param
+        xs_init = []
+        us_init = []
         for param, value in self._settings.items():
             if param == "verbose" and value:
                 solver.verbose = aligator.VERBOSE
             if param == "max_iters":
                 solver.max_iters = value
+            if param == "default_start" and value:
+                xs_init, us_init = default_initialize_rollout(prob)
+
         solver.rollout_type = self._settings.get(
             "rollout_type", aligator.ROLLOUT_NONLINEAR
         )
+        solver.linesearch.avg_eta = 0.0
 
         bcl_params: solver.AlmParams = solver.bcl_params
         bcl_params.mu_lower_bound = self._settings.get("mu_lower_bound", 1e-10)
         solver.setup(prob)
         results: aligator.Results = solver.results
         try:
-            conv = solver.run(prob)
+            conv = solver.run(prob, xs_init, us_init)
             if conv:
                 status = Status.CONVERGED
             elif results.num_iters == solver.max_iters:
@@ -153,6 +167,9 @@ class IpoptRunner:
                 solver.setMaxIters(value)
             if param == "print_level":
                 solver.setPrintLevel(value)
+            if param == "default_start" and value:
+                xs, us = default_initialize_rollout(p)
+                solver.setInitialGuess(xs, us)
 
         solver_code = solver.solve()
         print("Ipopt status:", solver_code)
