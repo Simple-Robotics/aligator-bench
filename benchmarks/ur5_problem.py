@@ -109,8 +109,8 @@ if __name__ == "__main__":
     nq = rmodel.nq
     times_ = ur_problem.times
 
-    TOL = 1e-3
-    mu_init = 1.0
+    TOL = 1e-4
+    mu_init = 10.0
 
     MAX_ITER = 400
     alirunner = ProxDdpRunner(
