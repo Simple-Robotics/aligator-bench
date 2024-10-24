@@ -35,6 +35,7 @@ class ProxDdpRunner:
         prob: TrajOptProblem = example.problem
         solver = SolverProxDDP(tol)
         solver.mu_init = self._settings["mu_init"]  # required param
+        solver.linesearch.avg_eta = 0.5
         xs_init = []
         us_init = []
         for param, value in self._settings.items():
@@ -44,11 +45,12 @@ class ProxDdpRunner:
                 solver.max_iters = value
             if param == "default_start" and value:
                 xs_init, us_init = default_initialize_rollout(prob)
+            if param == "ls_eta":
+                solver.linesearch.avg_eta = value
 
         solver.rollout_type = self._settings.get(
             "rollout_type", aligator.ROLLOUT_NONLINEAR
         )
-        solver.linesearch.avg_eta = 0.0
 
         bcl_params: solver.AlmParams = solver.bcl_params
         bcl_params.mu_lower_bound = self._settings.get("mu_lower_bound", 1e-10)
