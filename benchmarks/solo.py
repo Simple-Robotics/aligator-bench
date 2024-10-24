@@ -160,7 +160,7 @@ class SoloYoga(object):
                 _dyn = dyn4
             Wx = 1e-2 * np.ones(ndx)
             Wx[2] = 2.0
-            Wx[4] = 2.0
+            Wx[4] = 4.0
             Wx = np.diag(Wx)
 
             rcost.addCost(
@@ -195,9 +195,6 @@ if __name__ == "__main__":
     nq = rmodel.nq
     xref = example.xref
 
-    xs_init = [xref] * (nsteps + 1)
-    us_init = [u0] * nsteps
-
     TOL = 1e-3
     MAX_ITER = 200
     match args.solver:
@@ -208,7 +205,6 @@ if __name__ == "__main__":
             solver.verbose = aligator.VERBOSE
             solver.max_iters = MAX_ITER
             solver.setup(problem)
-            # solver.run(problem, xs_init, us_init)
             solver.run(problem)
 
             results = solver.results
@@ -219,7 +215,6 @@ if __name__ == "__main__":
 
             solver = SolverIpopt()
             solver.setup(problem, True)
-            # solver.setInitialGuess(xs_init, us_init)
             solver.setAbsTol(TOL)
             solver.setPrintLevel(4)
             solver.setMaxIters(MAX_ITER)
