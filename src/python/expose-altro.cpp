@@ -58,6 +58,7 @@ void exposeAltro() {
           +[](ALTROSolver &self, Eigen::Map<Eigen::VectorXd> x0) {
             self.SetInitialState(x0.data(), int(x0.size()));
           })
+      .def("GetSolveTimeMs", &ALTROSolver::GetSolveTimeMs, ("self"_a))
       .def("Initialize", &ALTROSolver::Initialize, ("self"_a))
       .def("Solve", &ALTROSolver::Solve, ("self"_a))
       .def("GetState", &get_state_wrap, ("self"_a, "k"))
