@@ -1,5 +1,6 @@
 import aligator
 import numpy as np
+import polars
 
 from aligator import SolverProxDDP, TrajOptProblem
 from enum import Enum, auto
@@ -12,9 +13,12 @@ class Status(Enum):
     ERROR = auto()
 
 
+status_dtype = polars.Enum([e.name for e in Status])
+
+
 @dataclass
 class Result:
-    status: Status
+    status: str
     traj_cost: float
     niter: int
     prim_feas: float
@@ -68,7 +72,7 @@ class ProxDdpRunner:
             status = Status.ERROR
         self._solver = solver
         return Result(
-            status,
+            status.name,
             results.traj_cost,
             results.num_iters,
             results.primal_infeas,
@@ -136,7 +140,7 @@ class AltroRunner:
         print("Solver code:", solver_code)
         self._solver = altro_solver
         return Result(
-            status,
+            status.name,
             altro_solver.CalcCost(),
             altro_solver.GetIterations(),
             altro_solver.GetPrimalFeasibility(),
@@ -183,7 +187,7 @@ class IpoptRunner:
             case _:
                 status = Status.ERROR
         return Result(
-            status,
+            status.name,
             solver.traj_cost,
             solver.num_iter,
             max(solver.cstr_violation, solver.complementarity),

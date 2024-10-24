@@ -1,6 +1,8 @@
 import dataclasses
+import polars as pl
 
 from typing import Type, Tuple
+from .solver_runner import status_dtype
 
 SolverConfig = Tuple[Type, dict]
 
@@ -24,4 +26,8 @@ def run_benchmark_configs(
             entry["instance"] = instance_name
             data_.append(entry)
 
-    return data_
+    df = pl.DataFrame(data_)
+    df = df.rename({"status": "status_old"})
+    df = df.with_columns(status=pl.col("status_old").cast(status_dtype))
+    df.drop_in_place("status_old")
+    return df
