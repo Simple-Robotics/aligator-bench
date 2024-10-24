@@ -77,11 +77,11 @@ problem = aligator.TrajOptProblem(x0, stages, term_cost)
 problem.addTerminalConstraint(frame_res1, constraints.EqualityConstraintSet())
 
 TOL = 1e-4
-mu_init = 1e-4
 max_iter = 400
 
 match args.solver:
     case "ali":
+        mu_init = 1e-6
         solver = aligator.SolverProxDDP(TOL, mu_init)
         solver.rollout_type = aligator.ROLLOUT_LINEAR
         solver.max_iters = max_iter
@@ -96,7 +96,7 @@ match args.solver:
     case "ipopt":
         solver = SolverIpopt()
         solver.setup(problem, True)
-        solver.setOption("tol", TOL)
+        solver.setAbsTol(TOL)
         solver.setPrintLevel(5)
         solver.setMaxIters(max_iter)
         _start = time.time_ns()
