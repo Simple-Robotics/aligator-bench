@@ -239,18 +239,19 @@ if __name__ == "__main__":
             _altrosolver.Solve()
             xs_opt = _altrosolver.GetAllStates().tolist()
 
-    viz = MeshcatVisualizer(rmodel, visual_model=robot.visual_model, data=rdata)
-    viz.initViewer(open=True, loadModel=True)
+    if args.viz:
+        viz = MeshcatVisualizer(rmodel, visual_model=robot.visual_model, data=rdata)
+        viz.initViewer(open=True, loadModel=True)
 
-    qs_opt = np.asarray(xs_opt)[:, :nq]
+        qs_opt = np.asarray(xs_opt)[:, :nq]
 
-    input("[enter]")
+        input("[enter]")
 
-    viz.setCameraPosition([0.5, 0.5, 0.5])
-    ctx = (
-        viz.create_video_ctx("solo12_lift_paw.mp4")
-        if args.record
-        else contextlib.nullcontext()
-    )
-    with ctx:
-        viz.play(qs_opt, dt=dt)
+        viz.setCameraPosition([0.5, 0.5, 0.5])
+        ctx = (
+            viz.create_video_ctx("solo12_lift_paw.mp4")
+            if args.record
+            else contextlib.nullcontext()
+        )
+        with ctx:
+            viz.play(qs_opt, dt=dt)

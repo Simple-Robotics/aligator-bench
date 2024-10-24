@@ -5,6 +5,7 @@ from typing import Literal
 class Args(Tap):
     solver: Literal["ali", "ipopt", "altro"]
     record: bool = False
+    viz: bool = False
 
 
 def load_solo12(verbose=False):
