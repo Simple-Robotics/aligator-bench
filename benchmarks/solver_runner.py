@@ -42,7 +42,7 @@ class ProxDdpRunner:
         prob: TrajOptProblem = example.problem
         solver = SolverProxDDP(tol)
         solver.mu_init = self._settings["mu_init"]  # required param
-        solver.linesearch.avg_eta = 0.5
+        solver.linesearch.avg_eta = 0.2
         xs_init = []
         us_init = []
         for param, value in self._settings.items():
