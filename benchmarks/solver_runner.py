@@ -34,6 +34,7 @@ def default_initialize_rollout(prob: TrajOptProblem):
 
 class ProxDdpRunner:
     def __init__(self, settings={}):
+        settings.setdefault("rollout_type", "nonlinear")
         self._settings = settings
 
     def solve(self, example, tol: float) -> Result:

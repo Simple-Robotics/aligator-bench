@@ -21,7 +21,7 @@ def run_with_vel(vel: bool, name):
     TOL = 1e-4
     MAX_ITERS = 400
 
-    default_start = True
+    default_start = False
     SOLVERS = [
         (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
         (

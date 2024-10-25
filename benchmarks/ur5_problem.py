@@ -17,12 +17,16 @@ def get_default_config_ee_pose(rmodel: pin.Model, ee_name: str):
 
 
 def generate_random_ee_target():
-    default_ee_target = get_default_config_ee_pose(URProblem.rmodel, URProblem.EE_NAME)
-    s = np.random.uniform(0.1, 0.95)
-    th = np.random.uniform(0, 2 * np.pi)
-    _zaxis = np.array([0.0, 0.0, 1.0])
-    _R = pin.exp3(th * _zaxis)
-    ee_target = s * _R @ default_ee_target
+    max_len = 0.8393931236807168
+    r = np.random.uniform(0.2, max_len * 0.9)
+    phi = np.random.uniform(0.0, 2.0 * np.pi)
+    th = np.random.uniform(20.0, 85.0)
+    th = np.deg2rad(th)
+    ee_target = np.zeros(3)
+    ee_target[0] = np.sin(th) * np.cos(phi)
+    ee_target[1] = np.sin(th) * np.sin(phi)
+    ee_target[2] = np.cos(th)
+    ee_target *= r
     return ee_target
 
 

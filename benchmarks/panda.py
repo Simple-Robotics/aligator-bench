@@ -9,7 +9,7 @@ from aligator import manifolds, constraints
 from aligator.utils import plotting
 from aligator_bench_pywrap import SolverIpopt
 from pinocchio.visualize import MeshcatVisualizer
-from .common import Args
+from .common import Args, add_obj_viz
 
 
 robot = erd.load("panda")
@@ -18,18 +18,6 @@ rmodel.gravity.np[:] = 0.0  # assume gravity is compensated
 
 
 class Panda(object):
-    def add_obj_viz(self, pos):
-        import hppfcl as coal
-
-        pose = pin.SE3.Identity()
-        obj_color = np.array([134, 10, 50, 200]) / 255.0
-        pose.translation[:] = pos
-
-        gobj = pin.GeometryObject(f"obj_{self._obj_id}", 0, coal.Sphere(0.05), pose)
-        gobj.meshColor[:] = obj_color
-        self._obj_id += 1
-        self.visual_model.addGeometryObject(gobj)
-
     def __init__(self, nsteps=400, term_constraint=True):
         self._obj_id = 0
         space = manifolds.MultibodyPhaseSpace(rmodel)
@@ -43,8 +31,8 @@ class Panda(object):
         self.ee_id = rmodel.getFrameId("panda_hand_tcp_joint")
         ee_ref0 = np.array([0.55, -0.2, 0.6])
         ee_ref1 = np.array([0.65, 0.3, 0.5])
-        self.add_obj_viz(ee_ref0)
-        self.add_obj_viz(ee_ref1)
+        add_obj_viz(self.visual_model, "obj1", ee_ref0)
+        add_obj_viz(self.visual_model, "obj2", ee_ref1)
 
         w_ee = np.eye(3) * 10.0
         frame_res0 = aligator.FrameTranslationResidual(

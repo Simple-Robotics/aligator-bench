@@ -1,3 +1,5 @@
+import numpy as np
+import pinocchio as pin
 from tap import Tap
 from typing import Literal
 
@@ -10,7 +12,6 @@ class Args(Tap):
 
 def load_solo12(verbose=False):
     """Load Solo12 with Euclidean parameterization."""
-    import pinocchio as pin
     from os.path import join
     from example_robot_data.robots_loader import (
         Solo12Loader,
@@ -43,3 +44,15 @@ def load_solo12(verbose=False):
     )
 
     return robot
+
+
+def add_obj_viz(visual_model, name, pos):
+    import hppfcl as coal
+
+    pose = pin.SE3.Identity()
+    obj_color = np.array([134, 10, 50, 200]) / 255.0
+    pose.translation[:] = pos
+
+    gobj = pin.GeometryObject(name, 0, coal.Sphere(0.05), pose)
+    gobj.meshColor[:] = obj_color
+    return visual_model.addGeometryObject(gobj)
