@@ -30,15 +30,14 @@ class URProblem(object):
     robot = erd.load("ur5")
     rmodel = robot.model
     EE_NAME = "tool0"
+    q0 = pin.neutral(rmodel)
 
     def __init__(self, vel_constraint=False, ee_target=None):
-        q0 = pin.neutral(self.rmodel)
-
         if ee_target is None:
             ee_target = 0.7 * get_default_config_ee_pose(self.rmodel, self.EE_NAME)
 
         self.problem, self.times = self._build_problem(
-            self.rmodel, q0, vel_constraint, ee_target, self.EE_NAME
+            self.rmodel, self.q0, vel_constraint, ee_target, self.EE_NAME
         )
         self._vel_constraint = vel_constraint
 
