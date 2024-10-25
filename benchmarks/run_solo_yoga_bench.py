@@ -1,9 +1,8 @@
 import polars
-import aligator
 
 from .solo import SoloYoga
 from .solver_runner import ProxDdpRunner, IpoptRunner
-from .bench_runner import SolverConfig, run_benchmark_configs, save_run
+from .bench_runner import SolverConfig, run_benchmark_configs
 
 
 TOL = 1e-3
@@ -11,6 +10,7 @@ MAX_ITERS = 400
 
 instances = [
     {"dip_angle": 40.0},
+    {"dip_angle": 35.0},
     {"dip_angle": 30.0},
     {"dip_angle": 25.0},
     {"dip_angle": 20.0},
@@ -18,7 +18,7 @@ instances = [
 ]
 
 SOLVERS: list[SolverConfig] = [
-    (ProxDdpRunner, {"mu_init": 1e-4, "rollout_type": aligator.ROLLOUT_LINEAR}),
+    (ProxDdpRunner, {"mu_init": 1e-4, "rollout_type": "linear"}),
     (IpoptRunner, {"print_level": 3}),
 ]
 
@@ -28,10 +28,8 @@ for _, settings in SOLVERS:
 
 
 df = run_benchmark_configs(
-    SoloYoga, TOL, instance_configs=instances, solver_configs=SOLVERS
+    "solo_yoga", SoloYoga, TOL, instance_configs=instances, solver_configs=SOLVERS
 )
 
 with polars.Config(tbl_rows=-1):
     print(df)
-
-save_run(df, "solo_yoga")

@@ -55,9 +55,13 @@ class ProxDdpRunner:
             if param == "ls_eta":
                 solver.linesearch.avg_eta = value
 
-        solver.rollout_type = self._settings.get(
-            "rollout_type", aligator.ROLLOUT_NONLINEAR
-        )
+        match self._settings.get("rollout_type", "nonlinear"):
+            case "linear":
+                solver.rollout_type = aligator.ROLLOUT_LINEAR
+            case "nonlinear":
+                solver.rollout_type = aligator.ROLLOUT_NONLINEAR
+            case _:
+                raise ValueError("Unknown value for key 'rollout_type'.")
 
         bcl_params: solver.AlmParams = solver.bcl_params
         bcl_params.mu_lower_bound = self._settings.get("mu_lower_bound", 1e-10)
