@@ -14,7 +14,7 @@ rmodel = URProblem.robot.model
 def run_with_vel(vel: bool, name):
     import aligator
 
-    num_instances = 5
+    num_instances = 10
     instance_configs = []
     for i in range(num_instances):
         ee_target = generate_random_ee_target()
