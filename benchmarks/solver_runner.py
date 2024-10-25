@@ -154,8 +154,7 @@ class AltroRunner:
             altro_solver.GetIterations(),
             altro_solver.GetPrimalFeasibility(),
             altro_solver.GetStationarity(),
-            # altro_solver.GetSolveTimeMs(),
-            _elapsed_time,
+            altro_solver.GetSolveTimeMs() * 1e-3,
         )
 
     @property

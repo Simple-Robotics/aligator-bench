@@ -125,7 +125,8 @@ if __name__ == "__main__":
             "default_start": True,
         }
     )
-    alirunner.solve(ur_problem, TOL)
+    ali_res = alirunner.solve(ur_problem, TOL)
+    print(ali_res)
     alisolver = alirunner.solver
 
     ali_iter = alisolver.results.num_iters
