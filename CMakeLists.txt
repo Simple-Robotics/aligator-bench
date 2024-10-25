@@ -19,16 +19,11 @@ set(CMAKE_VERBOSE_MAKEFILE False)
 
 add_subdirectory(third-party/altro EXCLUDE_FROM_ALL)
 add_subdirectory(third-party/toml11)
-find_package(Matplot++ QUIET)
-if(NOT Matplot++_FOUND)
-  set(MATPLOTPP_BUILD_WITH_PEDANTIC_WARNINGS OFF CACHE BOOL "")
-  add_subdirectory(third-party/matplotplusplus)
-endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 add_subdirectory(src)
-add_subdirectory(benchmarks)
+add_subdirectory(benchmarks/cpp)
 add_subdirectory(tests)

@@ -4,12 +4,10 @@
 #include <proxsuite-nlp/modelling/constraints/equality-constraint.hpp>
 
 #include "aligator-problem-to-altro.hpp"
-#include "plot_util.hpp"
 #include "robots/robot_load.hpp"
 #include "problems/ur5-util.hpp"
 
 #include <altro/altro.hpp>
-#include <matplot/matplot.h>
 
 using namespace aligator_bench;
 namespace pin = pinocchio;
@@ -25,8 +23,6 @@ int main() {
   const double dt = 5e-2;
   const size_t nsteps = 120;
   const size_t max_iters = 400;
-  const double tf = nsteps * dt;
-  const std::vector<double> times = matplot::linspace(0, tf, nsteps + 1);
 
   pin::Model model = aligator_bench::loadModelFromToml("ur.toml", "ur5");
   std::cout << model << std::endl;
@@ -73,18 +69,6 @@ int main() {
   fmt::println("{}", solver.results_);
 
   {
-    // plot
-    matplot::figure();
-    auto ax = matplot::gca();
-    ax->hold(true);
-    ax->title("Aligator");
-    for (long i = 0; i < 6; i++) {
-      ax->plot(times, traj_coordinate(solver.results_.xs, i))->line_width(1.5);
-    }
-    matplot::show();
-  }
-
-  {
     using altro::ErrorCodes;
     using altro::SolveStatus;
     altro::ALTROSolver solver =
@@ -118,16 +102,6 @@ int main() {
       solver.GetState(xs.back().data(), k);
     }
     assert(xs.size() == nsteps + 1);
-
-    matplot::figure();
-    auto ax = matplot::gca();
-    ax->title("Altro");
-    ax->hold(true);
-    for (long i = 0; i < 6; i++) {
-      ax->plot(times, traj_coordinate(xs, i))->line_width(1.5);
-    }
-    ax->xlabel("Time");
-    matplot::show();
   }
 
   return 0;
