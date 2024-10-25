@@ -24,7 +24,7 @@ def run_benchmark_configs(
     import pickle
 
     data_ = []
-    suppl_data = {}
+    suppl_data = {"instance": {}, "solver": {}}
     for i, config in enumerate(instance_configs):
         example = cls(**config)
         instance_name = example.name() + f"_{i}"
