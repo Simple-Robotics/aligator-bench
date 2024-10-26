@@ -35,6 +35,14 @@ def run_with_vel(vel: bool, name):
         (
             ProxDdpRunner,
             {
+                "mu_init": 0.1,
+                "default_start": default_start,
+                "rollout_type": "nonlinear",
+            },
+        ),
+        (
+            ProxDdpRunner,
+            {
                 "mu_init": 1e-1,
                 "default_start": default_start,
                 "rollout_type": "linear",
