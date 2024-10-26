@@ -24,11 +24,10 @@ def run_benchmark_configs(
     import pickle
 
     data_ = []
-    suppl_data = {"instance": {}, "solver": {}}
+    suppl_data = {}
     for i, config in enumerate(instance_configs):
         example = cls(**config)
         instance_name = example.name() + f"_{i}"
-        suppl_data["instance"][instance_name] = config.copy()
         for runner_cls, settings in solver_configs:
             runner = runner_cls(settings)
             entry = {"name": runner.name()}
@@ -43,7 +42,10 @@ def run_benchmark_configs(
             entry["instance"] = instance_name
             entry["nsteps"] = example.problem.num_steps
             data_.append(entry)
-            suppl_data["solver"][run_id.hex] = settings.copy()
+            suppl_data[run_id.hex] = {
+                "solver": settings.copy(),
+                "instance": {"name": instance_name, **config},
+            }
 
     df = pl.DataFrame(data_)
     df = df.rename({"status": "status_old"})
