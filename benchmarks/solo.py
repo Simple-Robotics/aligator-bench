@@ -74,7 +74,7 @@ rdata: pin.Data = robot.data
 
 
 class SoloYoga(object):
-    def __init__(self, dip_angle, twist_angle=20):
+    def __init__(self, dip_angle):
         self.q_standing = get_default_pose(rmodel, rdata)
         self.v0 = np.zeros(nv)
         self.xref = np.concatenate((self.q_standing, self.v0))

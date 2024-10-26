@@ -34,9 +34,12 @@ class URProblem(object):
     robot = erd.load("ur5")
     rmodel = robot.model
     EE_NAME = "tool0"
-    q0 = pin.neutral(rmodel)
 
-    def __init__(self, vel_constraint=False, ee_target=None):
+    def __init__(self, vel_constraint=False, ee_target=None, q0=None):
+        if q0 is None:
+            self.q0 = pin.neutral(rmodel)
+        else:
+            self.q0 = q0
         if ee_target is None:
             ee_target = 0.7 * get_default_config_ee_pose(self.rmodel, self.EE_NAME)
 
