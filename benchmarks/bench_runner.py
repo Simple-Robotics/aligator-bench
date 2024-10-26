@@ -32,7 +32,7 @@ def run_benchmark_configs(
             runner = runner_cls(settings)
             entry = {"name": runner.name()}
             print(runner.name(), settings)
-            print(example.name(), config)
+            print(instance_name, config)
             res = runner.solve(example, tol)
             print(res)
             print("-------")
@@ -43,7 +43,7 @@ def run_benchmark_configs(
             entry["nsteps"] = example.problem.num_steps
             data_.append(entry)
             suppl_data[run_id.hex] = {
-                "solver": settings.copy(),
+                "solver": {"name": runner.name(), **settings},
                 "instance": {"name": instance_name, **config},
             }
 

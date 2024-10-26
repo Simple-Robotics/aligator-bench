@@ -1,5 +1,6 @@
 import numpy as np
 import polars
+import pinocchio as pin
 from .ur5_problem import URProblem, generate_random_ee_target
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner
 from .bench_runner import run_benchmark_configs
@@ -12,60 +13,77 @@ rmodel = URProblem.robot.model
 
 
 def run_with_vel(vel: bool, name):
-    num_instances = 10
-    instance_configs = []
-    for i in range(num_instances):
-        ee_target = generate_random_ee_target()
-        instance_configs.append({"vel_constraint": vel, "ee_target": ee_target})
-
-    TOL = 1e-4
-    MAX_ITERS = 400
+    num_instances = 20
+    q0_def = pin.neutral(rmodel)
 
     default_start = False
-    SOLVERS = [
-        (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
-        (
-            ProxDdpRunner,
-            {
-                "mu_init": 1.0,
-                "default_start": default_start,
-                "rollout_type": "nonlinear",
-            },
-        ),
-        (
-            ProxDdpRunner,
-            {
-                "mu_init": 0.1,
-                "default_start": default_start,
-                "rollout_type": "nonlinear",
-            },
-        ),
-        (
-            ProxDdpRunner,
-            {
-                "mu_init": 1e-1,
-                "default_start": default_start,
-                "rollout_type": "linear",
-            },
-        ),
-        (IpoptRunner, {"print_level": 2, "default_start": default_start}),
-    ]
+    MAX_MAX_ITERS = 400
+    max_iter = 50
 
-    for _, settings in SOLVERS:
-        settings["verbose"] = False
-        settings["max_iters"] = MAX_ITERS
+    # Sweep through values of max_iter
+    while max_iter <= MAX_MAX_ITERS:
+        instance_configs = []
+        for i in range(num_instances):
+            ee_target = generate_random_ee_target()
+            q0_gen = q0_def + np.random.randn(rmodel.nq)
+            instance_configs.append(
+                {"vel_constraint": vel, "ee_target": ee_target, "q0": q0_gen}
+            )
+        SOLVERS = [
+            (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
+            (
+                ProxDdpRunner,
+                {
+                    "mu_init": 1.0,
+                    "default_start": default_start,
+                    "rollout_type": "nonlinear",
+                },
+            ),
+            (
+                ProxDdpRunner,
+                {
+                    "mu_init": 1e-1,
+                    "default_start": default_start,
+                    "rollout_type": "nonlinear",
+                },
+            ),
+            (
+                ProxDdpRunner,
+                {
+                    "mu_init": 1e-2,
+                    "default_start": default_start,
+                    "rollout_type": "nonlinear",
+                },
+            ),
+            (
+                ProxDdpRunner,
+                {
+                    "mu_init": 1e-1,
+                    "default_start": default_start,
+                    "rollout_type": "linear",
+                },
+            ),
+            (IpoptRunner, {"print_level": 2, "default_start": default_start}),
+        ]
 
-    df = run_benchmark_configs(
-        bench_name=name,
-        cls=URProblem,
-        tol=TOL,
-        instance_configs=instance_configs,
-        solver_configs=SOLVERS,
-    )
+        for _, settings in SOLVERS:
+            settings["verbose"] = False
+            settings["max_iters"] = max_iter
 
-    with polars.Config(tbl_rows=-1, tbl_cols=10):
-        print(df)
+        TOL = 1e-4
+        df = run_benchmark_configs(
+            bench_name=f"{name}_max_{max_iter}",
+            cls=URProblem,
+            tol=TOL,
+            instance_configs=instance_configs,
+            solver_configs=SOLVERS,
+        )
+
+        with polars.Config(tbl_rows=-1, tbl_cols=10):
+            print(df)
+
+        max_iter += 50
 
 
 run_with_vel(False, "ur5_reach")
-# run_with_vel(True, "ur5_reach_vel")
+run_with_vel(True, "ur5_reach_vel")
