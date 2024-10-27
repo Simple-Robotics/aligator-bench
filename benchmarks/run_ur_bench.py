@@ -1,5 +1,4 @@
 import numpy as np
-import polars
 import pinocchio as pin
 from .ur5_problem import URProblem, generate_random_ee_target
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner
@@ -13,7 +12,7 @@ rmodel = URProblem.robot.model
 
 
 def run_with_vel(vel: bool, name):
-    num_instances = 40
+    num_instances = 25
     q0_def = pin.neutral(rmodel)
     instance_configs = []
     for i in range(num_instances):
@@ -71,16 +70,13 @@ def run_with_vel(vel: bool, name):
             settings["max_iters"] = max_iter
 
         TOL = 1e-4
-        df = run_benchmark_configs(
-            bench_name=f"{name}_max_{max_iter}",
+        run_benchmark_configs(
+            bench_name=f"{name}_{max_iter}",
             cls=URProblem,
             tol=TOL,
             instance_configs=instance_configs,
             solver_configs=SOLVERS,
         )
-
-        with polars.Config(tbl_rows=-1, tbl_cols=10):
-            print(df)
 
         max_iter += 50
 
