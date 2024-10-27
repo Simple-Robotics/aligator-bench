@@ -81,7 +81,8 @@ class SoloYoga(object):
         dip_angle_rad = np.deg2rad(dip_angle)
         self._build_problem(rmodel, dip_angle_rad)
 
-    def name(self):
+    @staticmethod
+    def name():
         return "Solo_Yoga"
 
     def _build_problem(self, rmodel: pin.Model, dip_angle):
