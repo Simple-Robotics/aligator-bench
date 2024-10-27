@@ -191,7 +191,7 @@ if __name__ == "__main__":
     from .common import Args
 
     args = Args().parse_args()
-    example = SoloYoga(dip_angle=40)
+    example = SoloYoga(dip_angle=50, twist_angle=0)
     problem = example.problem
     u0 = example.u0
     nq = rmodel.nq
