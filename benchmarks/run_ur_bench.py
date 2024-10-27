@@ -13,8 +13,15 @@ rmodel = URProblem.robot.model
 
 
 def run_with_vel(vel: bool, name):
-    num_instances = 20
+    num_instances = 40
     q0_def = pin.neutral(rmodel)
+    instance_configs = []
+    for i in range(num_instances):
+        ee_target = generate_random_ee_target()
+        q0_gen = q0_def + np.random.randn(rmodel.nq)
+        instance_configs.append(
+            {"vel_constraint": vel, "ee_target": ee_target, "q0": q0_gen}
+        )
 
     default_start = False
     MAX_MAX_ITERS = 400
@@ -22,13 +29,6 @@ def run_with_vel(vel: bool, name):
 
     # Sweep through values of max_iter
     while max_iter <= MAX_MAX_ITERS:
-        instance_configs = []
-        for i in range(num_instances):
-            ee_target = generate_random_ee_target()
-            q0_gen = q0_def + np.random.randn(rmodel.nq)
-            instance_configs.append(
-                {"vel_constraint": vel, "ee_target": ee_target, "q0": q0_gen}
-            )
         SOLVERS = [
             (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
             (
