@@ -12,10 +12,11 @@ RESULTS_DIR = Path("results/")
 
 
 def run_single_instance(
-    bench_name, tol, instance_name, example, example_config, solver_configs
+    bench_name, cls, tol, instance_name, example_config, solver_configs
 ):
     import pickle
 
+    example = cls(**example_config)
     data_ = []
     suppl_data = {}
     cls_config_count = defaultdict(int)
@@ -64,9 +65,19 @@ def run_benchmark_configs(
     instance_configs: list[dict],
     solver_configs: list[SolverConfig],
 ):
+    from multiprocessing import Pool
+
+    pool = Pool(3)
+    inputs = []
     for i, example_config in enumerate(instance_configs):
-        example = cls(**example_config)
-        instance_name = example.name() + f"_{i}"
-        run_single_instance(
-            bench_name, tol, instance_name, example, example_config, solver_configs
+        instance_name = cls.name() + f"_{i}"
+        # run_single_instance(
+        #     bench_name, cls, tol, instance_name, example_config, solver_configs
+        # )
+        inputs.append(
+            (bench_name, cls, tol, instance_name, example_config, solver_configs)
         )
+
+    pool.starmap(run_single_instance, inputs)
+    pool.close()
+    pool.join()
