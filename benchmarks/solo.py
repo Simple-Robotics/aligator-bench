@@ -21,7 +21,6 @@ def get_default_pose(rmodel, rdata):
     pin.updateFramePlacement(rmodel, rdata, fr_foot_fid)
     q0[2] -= rdata.oMf[fr_foot_fid].translation[2]
     q0[2] += 0.01
-    pin.framesForwardKinematics(rmodel, rdata, q0)
     return q0
 
 
@@ -61,7 +60,7 @@ def get_constraint_models(rmodel, feet_names, Kp, Kd=None):
     return rcms
 
 
-tf = 3.4
+tf = 4.0
 dt = 0.01
 nsteps = int(tf / dt)
 print(f"nsteps = {nsteps}")
@@ -74,18 +73,18 @@ rdata: pin.Data = robot.data
 
 
 class SoloYoga(object):
-    def __init__(self, dip_angle):
+    def __init__(self, dip_angle, twist_angle=0.0):
         self.q_standing = get_default_pose(rmodel, rdata)
+        pin.framesForwardKinematics(rmodel, rdata, self.q_standing)
         self.v0 = np.zeros(nv)
         self.xref = np.concatenate((self.q_standing, self.v0))
-        dip_angle_rad = np.deg2rad(dip_angle)
-        self._build_problem(rmodel, dip_angle_rad)
+        self._build_problem(rmodel, np.deg2rad(dip_angle), np.deg2rad(twist_angle))
 
     @staticmethod
     def name():
         return "Solo_Yoga"
 
-    def _build_problem(self, rmodel: pin.Model, dip_angle):
+    def _build_problem(self, rmodel: pin.Model, dip_angle, twist_angle):
         space = manifolds.MultibodyPhaseSpace(rmodel)
         ndx = space.ndx
         prox_settings = pin.ProximalSettings(1e-7, 1e-10, 10)
@@ -119,6 +118,7 @@ class SoloYoga(object):
             xtgt[2] += amp * np.sin(phas)
 
             if 1.0 <= ti < 1.5:
+                xtgt[3] = twist_angle
                 xtgt[4] = dip_angle
             if 1.5 <= ti:
                 xtgt[4] = np.deg2rad(-20)
@@ -141,7 +141,7 @@ class SoloYoga(object):
         _t1 = 2.0
         _t2 = 2.4
         _t3 = 2.7
-        _t4 = 3.2
+        _t4 = 3.5
         stages = []
         for i in range(nsteps):
             rcost = aligator.CostStack(space, nu)
@@ -161,6 +161,7 @@ class SoloYoga(object):
                 _dyn = dyn4
             Wx = 1e-2 * np.ones(ndx)
             Wx[2] = 2.0
+            Wx[3] = 2.0
             Wx[4] = 4.0
             Wx = np.diag(Wx)
 
