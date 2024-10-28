@@ -183,6 +183,12 @@ class IpoptRunner:
         p: TrajOptProblem = example.problem
         solver.setup(p)
         solver.setAbsTol(tol)
+        OTHER_IPOPT_OPTIONS = {
+            "linear_solver",
+            "hessian_approximation",
+            "limited_memory_aug_solver",
+            "expect_infeasible_problem",
+        }
         for param, value in self._settings.items():
             if param == "max_iters":
                 solver.setMaxIters(value)
@@ -191,6 +197,8 @@ class IpoptRunner:
             if param == "default_start" and value:
                 xs, us = default_initialize_rollout(p)
                 solver.setInitialGuess(xs, us)
+            if param in OTHER_IPOPT_OPTIONS:
+                solver.setOption(param, value)
 
         solver_code = solver.solve()
         print("Ipopt status:", solver_code)
