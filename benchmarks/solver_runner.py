@@ -52,6 +52,8 @@ class ProxDdpRunner:
                 solver.max_iters = value
             if param == "default_start" and value:
                 xs_init, us_init = default_initialize_rollout(prob)
+            if param == "warm_start":
+                xs_init, us_init = value
             if param == "ls_eta":
                 solver.linesearch.avg_eta = value
 
