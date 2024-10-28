@@ -196,6 +196,9 @@ class IpoptRunner:
             if param == "default_start" and value:
                 xs, us = default_initialize_rollout(p)
                 solver.setInitialGuess(xs, us)
+            if param == "warm_start":
+                xs, us = value
+                solver.setInitialGuess(xs, us)
             if param in OTHER_IPOPT_OPTIONS:
                 solver.setOption(param, value)
 
