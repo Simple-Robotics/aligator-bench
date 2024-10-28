@@ -68,10 +68,9 @@ class ProxDdpRunner:
         bcl_params.mu_lower_bound = self._settings.get("mu_lower_bound", 1e-10)
         solver.setup(prob)
         results: aligator.Results = solver.results
+        _start_time = time.time()
         try:
-            _start_time = time.time()
             conv = solver.run(prob, xs_init, us_init)
-            _elapsed_time = time.time() - _start_time
             if conv:
                 status = Status.CONVERGED
             elif results.num_iters == solver.max_iters:
@@ -80,6 +79,7 @@ class ProxDdpRunner:
                 status = Status.ERROR
         except Exception:
             status = Status.ERROR
+        _elapsed_time = time.time() - _start_time
         self._solver = solver
         return Result(
             status.name,
