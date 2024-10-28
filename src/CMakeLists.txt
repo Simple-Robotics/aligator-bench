@@ -5,6 +5,7 @@ set(
   albench_SOURCES
   aligator-to-altro-types.cpp
   aligator-problem-to-altro.cpp
+  collision-distance.cpp
   ipopt-interface.cpp
   ipopt-solver.cpp
 )

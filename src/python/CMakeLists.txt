@@ -8,6 +8,7 @@ set(
   expose-altro.cpp
   expose-aligator-to-altro.cpp
   expose-ipopt-solver.cpp
+  expose-collision-distance.cpp
 )
 
 set(PYLIB_NAME aligator_bench_pywrap)
