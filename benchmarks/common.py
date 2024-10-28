@@ -10,11 +10,10 @@ class Args(Tap):
     viz: bool = False
 
 
-def load_solo12(verbose=False):
-    """Load Solo12 with Euclidean parameterization."""
+def load_robot_euclidean(loader_cls, verbose=False):
+    """Load a robot with Euclidean parameterization."""
     from os.path import join
     from example_robot_data.robots_loader import (
-        Solo12Loader,
         RobotWrapper,
         getModelPath,
         readParamsFromSrdf,
@@ -22,28 +21,40 @@ def load_solo12(verbose=False):
 
     jmc = pin.JointModelComposite(pin.JointModelTranslation())
     jmc.addJoint(pin.JointModelSphericalZYX())
-    df_path = join(
-        Solo12Loader.path, Solo12Loader.urdf_subpath, Solo12Loader.urdf_filename
-    )
+    df_path = join(loader_cls.path, loader_cls.urdf_subpath, loader_cls.urdf_filename)
     model_path = getModelPath(df_path, verbose)
     df_path = join(model_path, df_path)
     builder = RobotWrapper.BuildFromURDF
     robot = builder(df_path, [join(model_path, "../..")], jmc)
-    srdf_path = join(
-        model_path,
-        Solo12Loader.path,
-        Solo12Loader.srdf_subpath,
-        Solo12Loader.srdf_filename,
-    )
-    robot.q0 = readParamsFromSrdf(
-        robot.model,
-        srdf_path,
-        verbose,
-        Solo12Loader.has_rotor_parameters,
-        Solo12Loader.ref_posture,
-    )
+    if len(loader_cls.srdf_filename) > 0:
+        srdf_path = join(
+            model_path,
+            loader_cls.path,
+            loader_cls.srdf_subpath,
+            loader_cls.srdf_filename,
+        )
+        robot.q0 = readParamsFromSrdf(
+            robot.model,
+            srdf_path,
+            verbose,
+            loader_cls.has_rotor_parameters,
+            loader_cls.ref_posture,
+        )
 
     return robot
+
+
+def load_solo12(verbose=False):
+    """Load Solo12 with Euclidean parameterization."""
+    from example_robot_data.robots_loader import Solo12Loader
+
+    return load_robot_euclidean(Solo12Loader, verbose)
+
+
+def load_hector(verbose=False):
+    from example_robot_data.robots_loader import HectorLoader
+
+    return load_robot_euclidean(HectorLoader, verbose)
 
 
 def add_obj_viz(visual_model, name, pos):
