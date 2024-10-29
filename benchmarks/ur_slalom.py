@@ -111,7 +111,7 @@ class UrSlalomExample(object):
         for i in range(nsteps):
             rcost = aligator.CostStack(space, nu)
             Wx = 1e-3 * np.ones(ndx)
-            Wx[nv:] = 1e-2
+            Wx[nv:] = 1e-1
             rcost.addCost(
                 "xreg",
                 aligator.QuadraticStateCost(space, nu, x0, dt * np.diag(Wx)),
