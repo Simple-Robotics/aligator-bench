@@ -37,7 +37,7 @@ class URProblem(object):
 
     def __init__(self, vel_constraint=False, ee_target=None, q0=None):
         if q0 is None:
-            self.q0 = pin.neutral(rmodel)
+            self.q0 = pin.neutral(self.rmodel)
         else:
             self.q0 = q0
         if ee_target is None:
@@ -75,7 +75,10 @@ class URProblem(object):
             aligator.dynamics.MultibodyFreeFwdDynamics(space), dt
         )
 
-        tf = 1.0
+        if vel_constraint:
+            tf = 1.6
+        else:
+            tf = 1.0
         nsteps = int(tf / dt)
         times = np.linspace(0.0, tf, nsteps + 1)
         ee_id = rmodel.getFrameId(ee_name)
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     MAX_ITER = 400
     alirunner = ProxDdpRunner(
         {
-            "rollout_type": aligator.ROLLOUT_LINEAR,
+            "rollout_type": "linear",
             "verbose": True,
             "max_iters": MAX_ITER,
             "mu_init": mu_init,
