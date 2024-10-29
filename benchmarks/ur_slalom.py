@@ -9,6 +9,8 @@ from .common import Args
 import example_robot_data as erd
 import hppfcl as fcl
 
+default_p_ee_term = np.array([0.0, -0.4, 0.3])
+
 
 class UrSlalomExample(object):
     robot = erd.load("ur5")
@@ -18,15 +20,17 @@ class UrSlalomExample(object):
     coll_model: pin.GeometryModel = robot.collision_model
     vis_model: pin.GeometryModel = robot.visual_model
 
-    def __init__(self):
-        self.problem, self.xs_init, self.us_init = self._build_problem()
+    def __init__(self, p_ee_term: np.ndarray):
+        self.problem, self.xs_init, self.us_init = self._build_problem(
+            p_ee_term=p_ee_term.copy()
+        )
 
     def add_objective_viz(self, name, pos):
         sph = fcl.Sphere(0.02)
         geom_sph = pin.GeometryObject(name, 0, sph, pin.SE3(np.eye(3), pos))
         self.vis_model.addGeometryObject(geom_sph)
 
-    def _build_problem(self):
+    def _build_problem(self, p_ee_term):
         nv = self.rmodel.nv
         cyl1_center = np.array([+0.5, -0.2, 0.0])
         cyl2_center = np.array([-0.5, -0.3, 0.0])
@@ -60,7 +64,6 @@ class UrSlalomExample(object):
         )
         geom_ids = [self.coll_model.getGeometryId(name) for name in geom_names]
 
-        p_ee_term = np.array([0.0, -0.4, 0.3])
         self.add_objective_viz("ee_term", p_ee_term)
 
         ode = aligator.dynamics.MultibodyFreeFwdDynamics(space)
