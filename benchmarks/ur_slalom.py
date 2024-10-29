@@ -10,6 +10,7 @@ import example_robot_data as erd
 import hppfcl as fcl
 
 default_p_ee_term = np.array([0.0, -0.4, 0.3])
+default_cyl1_center = np.array([+0.5, -0.3, 0.0])
 
 
 class UrSlalomExample(object):
@@ -20,9 +21,13 @@ class UrSlalomExample(object):
     coll_model: pin.GeometryModel = robot.collision_model
     vis_model: pin.GeometryModel = robot.visual_model
 
-    def __init__(self, p_ee_term: np.ndarray = default_p_ee_term):
+    def __init__(self, p_ee_term=None, cyl1_center=None):
+        if cyl1_center is None:
+            cyl1_center = default_cyl1_center.copy()
+        if p_ee_term is None:
+            p_ee_term = default_p_ee_term.copy()
         self.problem, self.xs_init, self.us_init = self._build_problem(
-            p_ee_term=np.asarray(p_ee_term)
+            cyl1_center=cyl1_center, p_ee_term=np.asarray(p_ee_term)
         )
 
     @staticmethod
@@ -34,10 +39,9 @@ class UrSlalomExample(object):
         geom_sph = pin.GeometryObject(name, 0, sph, pin.SE3(np.eye(3), pos))
         self.vis_model.addGeometryObject(geom_sph)
 
-    def _build_problem(self, p_ee_term):
+    def _build_problem(self, cyl1_center, p_ee_term):
         nv = self.rmodel.nv
         crad = 0.09
-        cyl1_center = np.array([+0.5, -0.3, 0.0])
         cyl1_geom = fcl.Cylinder(crad, 5.0)
         geom_cyl1 = pin.GeometryObject(
             "osbt1", 0, cyl1_geom, pin.SE3(np.eye(3), cyl1_center)
