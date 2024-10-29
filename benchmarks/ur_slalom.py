@@ -1,0 +1,189 @@
+import aligator
+import numpy as np
+import pinocchio as pin
+
+from aligator import manifolds, constraints
+from aligator_bench_pywrap import SphereCylinderCollisionDistance
+from .solver_runner import ProxDdpRunner
+from tap import Tap
+
+import example_robot_data as erd
+import hppfcl as fcl
+
+
+class Args(Tap):
+    viz: bool = False
+
+
+class UrSlalomExample(object):
+    robot = erd.load("ur5")
+    q0 = robot.q0
+    rmodel: pin.Model = robot.model
+    rdata: pin.Data = robot.data
+    coll_model: pin.GeometryModel = robot.collision_model
+    vis_model: pin.GeometryModel = robot.visual_model
+
+    def __init__(self):
+        self.problem, self.xs_init, self.us_init = self._build_problem()
+
+    def add_objective_viz(self, name, pos):
+        sph = fcl.Sphere(0.02)
+        geom_sph = pin.GeometryObject(name, 0, sph, pin.SE3(np.eye(3), pos))
+        self.vis_model.addGeometryObject(geom_sph)
+
+    def _build_problem(self):
+        nv = self.rmodel.nv
+        cyl1_center = np.array([+0.5, -0.2, 0.0])
+        cyl2_center = np.array([-0.5, -0.3, 0.0])
+        cyl1_geom = fcl.Cylinder(0.09, 10.0)
+        geom_cyl1 = pin.GeometryObject(
+            "osbt1", 0, cyl1_geom, pin.SE3(np.eye(3), cyl1_center)
+        )
+        geom_cyl1.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
+        cyl2_geom = fcl.Cylinder(0.09, 10.0)
+        geom_cyl2 = pin.GeometryObject(
+            "osbt2", 0, cyl2_geom, pin.SE3(np.eye(3), cyl2_center)
+        )
+        geom_cyl2.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
+        self.vis_model.addGeometryObject(geom_cyl1)
+        self.vis_model.addGeometryObject(geom_cyl2)
+
+        rmodel = self.rmodel
+        space = manifolds.MultibodyPhaseSpace(rmodel)
+        ndx = space.ndx
+        nu = nv
+
+        v0 = np.zeros(nv)
+        x0 = np.concatenate((self.q0, v0))
+
+        self.coll_model.geometryObjects[0].geometry.computeLocalAABB()
+        geom_names = (
+            "ee_link_0",
+            "forearm_link_0",
+            "wrist_1_link_0",
+            "upper_arm_link_0",
+        )
+        geom_ids = [self.coll_model.getGeometryId(name) for name in geom_names]
+
+        p_ee_term = np.array([0.0, -0.4, 0.3])
+        self.add_objective_viz("ee_term", p_ee_term)
+
+        ode = aligator.dynamics.MultibodyFreeFwdDynamics(space)
+
+        dt = 0.01
+        Tf = 3.0
+        nsteps = int(Tf / dt)
+
+        tau0 = pin.rnea(rmodel, self.rdata, self.q0, v0, v0)
+        dyn_model = aligator.dynamics.IntegratorSemiImplEuler(ode, dt)
+
+        us_init = [tau0] * nsteps
+        xs_init = aligator.rollout(dyn_model, x0, us_init)
+
+        ee_frame_id = rmodel.getFrameId("tool0")
+        coll_frames = []
+        coll_radii = []
+        print("Collision geom IDs:")
+        for gid in geom_ids:
+            gobj: pin.GeometryObject = self.coll_model.geometryObjects[gid]
+            fid = gobj.parentFrame
+            jid = gobj.parentJoint
+            print("gobj name:", gobj.name, "fid:", rmodel.frames[fid].name)
+            coll_frames.append(fid)
+
+            gobj.geometry.computeLocalAABB()
+            radius = 0.12
+
+            _collsph = pin.GeometryObject(
+                f"{gobj.name}_sph", jid, fid, pin.SE3.Identity(), fcl.Sphere(radius)
+            )
+            _collsph.meshColor[:] = (0.8, 0.8, 0.0, 0.2)
+            self.vis_model.addGeometryObject(_collsph)
+
+            coll_radii.append(radius)
+
+        stages = []
+        for i in range(nsteps):
+            coldist1 = SphereCylinderCollisionDistance(
+                rmodel,
+                ndx,
+                nu,
+                cyl1_center[:2],
+                cyl1_geom.radius,
+                coll_radii,
+                coll_frames,
+            )
+            coldist2 = SphereCylinderCollisionDistance(
+                rmodel,
+                ndx,
+                nu,
+                cyl2_center[:2],
+                cyl2_geom.radius,
+                coll_radii,
+                coll_frames,
+            )
+            rcost = aligator.CostStack(space, nu)
+            Wx = 1e-3 * np.ones(ndx)
+            Wx[nv:] = 1e-1
+            rcost.addCost(
+                "xreg",
+                aligator.QuadraticStateCost(
+                    space, nu, space.neutral(), dt * np.diag(Wx)
+                ),
+            )
+            Wu = 1e-3 * np.eye(nu)
+            rcost.addCost("ureg", aligator.QuadraticControlCost(space, tau0, dt * Wu))
+            stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
+            stage.addConstraint(coldist1, constraints.NegativeOrthant())
+            stage.addConstraint(coldist2, constraints.NegativeOrthant())
+            stages.append(stage)
+
+        W_ee_term = 5.0 * np.eye(3)
+        frame_res = aligator.FrameTranslationResidual(
+            ndx, nu, rmodel, p_ee_term, ee_frame_id
+        )
+        term_cost = aligator.CostStack(space, nu)
+        term_cost.addCost(
+            "ee", aligator.QuadraticResidualCost(space, frame_res, W_ee_term)
+        )
+        problem = aligator.TrajOptProblem(x0, stages=stages, term_cost=term_cost)
+        problem.addTerminalConstraint(frame_res, constraints.EqualityConstraintSet())
+        return problem, xs_init, us_init
+
+
+if __name__ == "__main__":
+    from pinocchio.visualize.meshcat_visualizer import MeshcatVisualizer
+
+    args = Args().parse_args()
+    example = UrSlalomExample()
+    nq = example.rmodel.nq
+    problem = example.problem
+    xs_i = example.xs_init
+    us_i = example.us_init
+
+    if args.viz:
+        viz = MeshcatVisualizer(example.rmodel, example.coll_model, example.vis_model)
+        viz.initViewer(open=True, loadModel=True)
+        viz.display(example.q0)
+
+    tol = 1e-3
+    mu_init = 1e-3
+    # solver = aligator.SolverProxDDP(tol, mu_init, max_iters=400)
+    # solver.verbose = aligator.VERBOSE
+    # # solver.rollout_type = aligator.ROLLOUT_LINEAR
+    # solver.setup(problem)
+    # solver.run(problem, xs_init=xs_i, us_init=us_i)
+    runner = ProxDdpRunner(
+        {"mu_init": mu_init, "warm_start": (xs_i, us_i), "verbose": True}
+    )
+    runner.solve(example, tol)
+    aliresults = runner.solver.results
+
+    print(aliresults)
+    xs_ = np.stack(aliresults.xs)
+    qs_ = xs_[:, :nq]
+
+    if args.viz:
+        while True:
+            input("[enter]")
+            viz.play(qs_)
