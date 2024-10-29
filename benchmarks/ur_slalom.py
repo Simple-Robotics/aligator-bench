@@ -25,6 +25,10 @@ class UrSlalomExample(object):
             p_ee_term=p_ee_term.copy()
         )
 
+    @staticmethod
+    def name():
+        return "UR5_Collision"
+
     def add_objective_viz(self, name, pos):
         sph = fcl.Sphere(0.02)
         geom_sph = pin.GeometryObject(name, 0, sph, pin.SE3(np.eye(3), pos))
