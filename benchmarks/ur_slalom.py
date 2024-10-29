@@ -38,18 +38,18 @@ class UrSlalomExample(object):
         nv = self.rmodel.nv
         crad = 0.09
         cyl1_center = np.array([+0.5, -0.3, 0.0])
-        cyl2_center = np.array([+0.35, -0.3, 0.0])
         cyl1_geom = fcl.Cylinder(crad, 5.0)
         geom_cyl1 = pin.GeometryObject(
             "osbt1", 0, cyl1_geom, pin.SE3(np.eye(3), cyl1_center)
         )
         geom_cyl1.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
-        cyl2_geom = fcl.Cylinder(crad, 5.0)
-        geom_cyl2 = pin.GeometryObject(
-            "osbt2", 0, cyl2_geom, pin.SE3(np.eye(3), cyl2_center)
-        )
-        geom_cyl2.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
         self.vis_model.addGeometryObject(geom_cyl1)
+        # cyl2_center = np.array([+0.35, -0.3, 0.0])
+        # cyl2_geom = fcl.Cylinder(crad, 5.0)
+        # geom_cyl2 = pin.GeometryObject(
+        #     "osbt2", 0, cyl2_geom, pin.SE3(np.eye(3), cyl2_center)
+        # )
+        # geom_cyl2.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
         # self.vis_model.addGeometryObject(geom_cyl2)
 
         rmodel = self.rmodel
