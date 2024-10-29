@@ -51,6 +51,7 @@ void exposeAltro() {
       .def("GetIterations", &ALTROSolver::GetIterations, ("self"_a))
       .def("GetPrimalFeasibility", &ALTROSolver::GetPrimalFeasibility,
            ("self"_a))
+      .def("GetComplementarity", &ALTROSolver::GetComplementarity, ("self"_a))
       .def("GetStationarity", &ALTROSolver::GetStationarity, ("self"_a))
       .def("GetFinalObjective", &ALTROSolver::GetFinalObjective, ("self"_a))
       .def(
@@ -127,6 +128,7 @@ void exposeAltro() {
       ._c(tol_primal_feasibility)
       ._c(tol_stationarity)
       ._c(tol_meritfun_gradient)
+      ._c(tol_complementarity)
       ._c(max_state_value)
       ._c(max_input_value)
       ._c(penalty_initial)
