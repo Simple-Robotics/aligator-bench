@@ -385,15 +385,17 @@ bool TrajOptIpoptNLP::eval_g(Index, const double *traj, bool new_x, Index m,
   const std::size_t nsteps = problem_.numSteps();
   const auto &stages = problem_.stages_;
   for (std::size_t i = 0; i < nsteps; i++) {
-    const int nc = stages[i]->nc();
     const int ndx2 = stages[i]->ndx2();
 
-    const int cidx = idx_constraints_[i + 1];
+    int cidx = idx_constraints_[i + 1];
     const auto &sd = problem_data_.stage_data[i];
     VecMap{g + cidx, ndx2} = sd->dynamics_data->value_;
-    // TODO: fix for multiple constraints...
-    if (!sd->constraint_data.empty())
-      VecMap{g + cidx + ndx2, nc} = sd->constraint_data[0]->value_;
+    cidx += ndx2;
+    for (size_t k = 0; k < sd->constraint_data.size(); k++) {
+      const int nr = sd->constraint_data[k]->nr;
+      VecMap{g + cidx, nr} = sd->constraint_data[k]->value_;
+      cidx += nr;
+    }
   }
 
   if (!problem_.term_cstrs_.empty()) {
@@ -446,7 +448,6 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       const int ndx = stage->ndx1();
       const int nu = stage->nu();
       const int ndx2 = stage->ndx2();
-      const int nc = stage->nc();
       int cid = idx_constraints_[i + 1];
 
       for (int idx_col = 0; idx_col < ndx + nu + ndx2; idx_col++) {
@@ -458,14 +459,19 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       }
 
       cid += ndx2;
-      // nc rows
-      // ndx + nu cols
-      for (int idx_col = 0; idx_col < ndx + nu; idx_col++) {
-        for (int idx_row = 0; idx_row < nc; idx_row++) {
-          iRow[idx] = cid + idx_row;
-          jCol[idx] = idx_xu_[i] + idx_col;
-          idx++;
+      // treat each constraint separately
+      for (size_t k = 0; k < stage->numConstraints(); k++) {
+        const int nr = stage->constraints_.funcs[k]->nr;
+        // nr rows
+        // ndx + nu cols
+        for (int idx_col = 0; idx_col < ndx + nu; idx_col++) {
+          for (int idx_row = 0; idx_row < nr; idx_row++) {
+            iRow[idx] = cid + idx_row;
+            jCol[idx] = idx_xu_[i] + idx_col;
+            idx++;
+          }
         }
+        cid += nr;
       }
     }
 
@@ -522,14 +528,25 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       dju = sds[i]->dynamics_data->Ju_;
       djy = sds[i]->dynamics_data->Jy_;
 
-      if (nc > 0) {
-        MatMap jx{ptr, nc, ndx};
-        ptr += nc * ndx;
-        MatMap ju{ptr, nc, nu};
-        ptr += nc * nu;
+      // if (nc > 0) {
+      //   MatMap jx{ptr, nc, ndx};
+      //   ptr += nc * ndx;
+      //   MatMap ju{ptr, nc, nu};
+      //   ptr += nc * nu;
 
-        jx = sds[i]->constraint_data[0]->Jx_;
-        ju = sds[i]->constraint_data[0]->Ju_;
+      //   jx = sds[i]->constraint_data[0]->Jx_;
+      //   ju = sds[i]->constraint_data[0]->Ju_;
+      // }
+      auto &cds = sds[i]->constraint_data;
+      for (size_t k = 0; k < cds.size(); k++) {
+        const int nr = cds[k]->nr;
+        MatMap jx{ptr, nr, ndx};
+        ptr += nr * ndx;
+        MatMap ju{ptr, nr, nu};
+        ptr += nr * nu;
+
+        jx = cds[k]->Jx_;
+        ju = cds[k]->Ju_;
       }
     }
 
@@ -601,8 +618,8 @@ bool TrajOptIpoptNLP ::eval_h(Index n, const double *traj, bool new_x,
       assert(H.rows() == ndx + nu);
       lowTriangAddFromEigen(ptr, H, obj_factor);
 
-      if (stage->numConstraints() > 0) {
-        auto &H = sds[i]->constraint_data[0]->vhp_buffer_;
+      for (size_t k = 0; k < stage->numConstraints(); k++) {
+        auto &H = sds[i]->constraint_data[k]->vhp_buffer_;
         assert(H.cols() == ndx + nu);
         assert(H.rows() == ndx + nu);
         lowTriangAddFromEigen(ptr, H, 1.);
