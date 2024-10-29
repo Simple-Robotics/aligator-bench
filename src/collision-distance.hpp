@@ -19,15 +19,13 @@ struct SphereCylinderCollisionDistance : UnaryFunction {
   pin::Model model_;
   Vector2d cyl_center_;
   double cyl_radius_;
-  double robot_radius_;
-  pin::FrameIndex frame_id;
 
   struct Data;
 
   SphereCylinderCollisionDistance(pin::Model model, int ndx, int nu,
                                   Vector2d center, double radius,
-                                  double robot_radius,
-                                  pin::FrameIndex frame_id);
+                                  std::vector<double> frame_radii,
+                                  std::vector<pin::FrameIndex> frame_ids);
 
   void evaluate(const ConstVectorRef &x,
                 StageFunctionData &data) const override;
@@ -36,6 +34,12 @@ struct SphereCylinderCollisionDistance : UnaryFunction {
                         StageFunctionData &data) const override;
 
   shared_ptr<StageFunctionData> createData() const override;
+
+  size_t numCollisions() const { return frame_ids_.size(); }
+
+private:
+  std::vector<double> frame_radii_;
+  std::vector<pin::FrameIndex> frame_ids_;
 };
 
 struct SphereCylinderCollisionDistance::Data : StageFunctionData {
