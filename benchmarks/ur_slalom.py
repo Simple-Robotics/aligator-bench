@@ -36,14 +36,15 @@ class UrSlalomExample(object):
 
     def _build_problem(self, p_ee_term):
         nv = self.rmodel.nv
-        cyl1_center = np.array([+0.4, -0.2, 0.0])
-        cyl2_center = np.array([-0.4, -0.3, 0.0])
-        cyl1_geom = fcl.Cylinder(0.09, 10.0)
+        crad = 0.06
+        cyl1_center = np.array([+0.5, -0.3, 0.0])
+        cyl2_center = np.array([+0.35, -0.3, 0.0])
+        cyl1_geom = fcl.Cylinder(crad, 5.0)
         geom_cyl1 = pin.GeometryObject(
             "osbt1", 0, cyl1_geom, pin.SE3(np.eye(3), cyl1_center)
         )
         geom_cyl1.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
-        cyl2_geom = fcl.Cylinder(0.09, 10.0)
+        cyl2_geom = fcl.Cylinder(crad, 5.0)
         geom_cyl2 = pin.GeometryObject(
             "osbt2", 0, cyl2_geom, pin.SE3(np.eye(3), cyl2_center)
         )
@@ -69,6 +70,8 @@ class UrSlalomExample(object):
         geom_ids = [self.coll_model.getGeometryId(name) for name in geom_names]
 
         self.add_objective_viz("ee_term", p_ee_term)
+        ee_midway = np.array([0.8, -0.1, 0.4])
+        self.add_objective_viz("ee_mid", ee_midway)
 
         ode = aligator.dynamics.MultibodyFreeFwdDynamics(space)
 
@@ -93,7 +96,7 @@ class UrSlalomExample(object):
             coll_frames.append(fid)
 
             gobj.geometry.computeLocalAABB()
-            radius = 0.12
+            radius = 0.1
 
             _collsph = pin.GeometryObject(
                 f"{gobj.name}_sph", jid, fid, pin.SE3.Identity(), fcl.Sphere(radius)
@@ -104,23 +107,30 @@ class UrSlalomExample(object):
             coll_radii.append(radius)
 
         stages = []
+
         for i in range(nsteps):
             rcost = aligator.CostStack(space, nu)
             Wx = 1e-3 * np.ones(ndx)
             Wx[nv:] = 1e-2
             rcost.addCost(
                 "xreg",
-                aligator.QuadraticStateCost(
-                    space, nu, space.neutral(), dt * np.diag(Wx)
-                ),
+                aligator.QuadraticStateCost(space, nu, x0, dt * np.diag(Wx)),
             )
             Wu = 1e-3 * np.eye(nu)
             rcost.addCost("ureg", aligator.QuadraticControlCost(space, tau0, dt * Wu))
+            if i == nsteps / 2:
+                frame_res = aligator.FrameTranslationResidual(
+                    ndx, nu, rmodel, ee_midway, ee_frame_id
+                )
+                rcost.addCost(
+                    "ee",
+                    aligator.QuadraticResidualCost(space, frame_res, np.eye(3)),
+                    10.0,
+                )
             stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
-            ulim = rmodel.effortLimit
             stage.addConstraint(
                 aligator.ControlErrorResidual(ndx, nu),
-                constraints.BoxConstraint(-ulim, ulim),
+                constraints.BoxConstraint(-rmodel.effortLimit, rmodel.effortLimit),
             )
             coldist1 = SphereCylinderCollisionDistance(
                 rmodel,
@@ -132,26 +142,24 @@ class UrSlalomExample(object):
                 coll_frames,
             )
             stage.addConstraint(coldist1, constraints.NegativeOrthant())
-            # coldist2 = SphereCylinderCollisionDistance(
-            #     rmodel,
-            #     ndx,
-            #     nu,
-            #     cyl2_center[:2],
-            #     cyl2_geom.radius,
-            #     coll_radii,
-            #     coll_frames,
-            # )
-            # stage.addConstraint(coldist2, constraints.NegativeOrthant())
+            coldist2 = SphereCylinderCollisionDistance(
+                rmodel,
+                ndx,
+                nu,
+                cyl2_center[:2],
+                cyl2_geom.radius,
+                coll_radii,
+                coll_frames,
+            )
+            stage.addConstraint(coldist2, constraints.NegativeOrthant())
             stages.append(stage)
 
-        W_ee_term = 5.0 * np.eye(3)
         frame_res = aligator.FrameTranslationResidual(
             ndx, nu, rmodel, p_ee_term, ee_frame_id
         )
         term_cost = aligator.CostStack(space, nu)
-        term_cost.addCost(
-            "ee", aligator.QuadraticResidualCost(space, frame_res, W_ee_term)
-        )
+        Wxterm = 1e-4 * np.eye(ndx)
+        term_cost.addCost("xreg", aligator.QuadraticStateCost(space, nu, x0, Wxterm))
         problem = aligator.TrajOptProblem(x0, stages=stages, term_cost=term_cost)
         problem.addTerminalConstraint(frame_res, constraints.EqualityConstraintSet())
         return problem, xs_init, us_init
@@ -162,7 +170,7 @@ if __name__ == "__main__":
     from .solver_runner import ProxDdpRunner, IpoptRunner, AltroRunner
 
     args = Args().parse_args()
-    example = UrSlalomExample()
+    example = UrSlalomExample([0.0, -0.4, 0.3])
     nq = example.rmodel.nq
     problem = example.problem
     xs_i = example.xs_init
@@ -195,7 +203,7 @@ if __name__ == "__main__":
                 {
                     "mu_init": mu_init,
                     # "warm_start": (xs_i, us_i),
-                    "ls_eta": 0.1,
+                    "ls_eta": 0.0,
                     "verbose": True,
                     "max_iters": MAX_ITERS,
                 }
