@@ -20,7 +20,7 @@ void SphereCylinderCollisionDistance::evaluate(const ConstVectorRef &x,
   auto &M = pin::updateFramePlacement(model_, d.pin_data_, frame_id);
   Vector2d err = M.translation().head<2>() - cyl_center_;
   double res = err.squaredNorm() - std::pow(cyl_radius_, 2.0);
-  d.value_(0) = res;
+  d.value_(0) = -res;
 }
 
 void SphereCylinderCollisionDistance::computeJacobians(
@@ -33,7 +33,7 @@ void SphereCylinderCollisionDistance::computeJacobians(
   auto &M = d.pin_data_.oMf[frame_id];
   Vector2d err = M.translation().head<2>() - cyl_center_;
   d.Jx_.leftCols(nv).noalias() =
-      -2.0 * d.frame_jac_.leftCols(2).transpose() * err;
+      -2.0 * err.transpose() * d.frame_jac_.topRows(2);
 }
 
 shared_ptr<StageFunctionData>
@@ -43,7 +43,7 @@ SphereCylinderCollisionDistance::createData() const {
 
 SphereCylinderCollisionDistance::Data::Data(
     const SphereCylinderCollisionDistance &model)
-    : StageFunctionData(model) {
+    : StageFunctionData(model), pin_data_(model.model_) {
   frame_jac_.resize(6, model.model_.nv);
 }
 
