@@ -17,7 +17,7 @@ initAltroFromAligatorProblem(const alcontext::TrajOptProblem &problem) {
   auto constraint_handle = [&solver](int nx, int k,
                                      const alcontext::ConstraintStack &cstrs) {
     // constraints
-    for (size_t j = 0; j < cstrs.size(); k++) {
+    for (size_t j = 0; j < cstrs.size(); j++) {
       auto [c, Jc, ct, dim] =
           aligatorConstraintToAltro(nx, cstrs.funcs[j], cstrs.sets[j]);
       std::string label = fmt::format("cstr_{:d}", j);
