@@ -4,11 +4,18 @@ import random
 from .solo import SoloYoga
 from .solver_runner import ProxDdpRunner, IpoptRunner
 from .bench_runner import SolverConfig, run_benchmark_configs
+from tap import Tap
+
+
+class Args(Tap):
+    seed: int = 1515
+    pool_size: int
 
 
 TOL = 1e-3
 num_instances = 50
-np.random.seed(1515)
+args = Args().parse_args()
+np.random.seed(args.seed)
 
 MAX_ITERS = 500
 instances = []
@@ -60,4 +67,5 @@ run_benchmark_configs(
     tol=TOL,
     instance_configs=instances,
     solver_configs=SOLVERS,
+    pool_size=args.pool_size,
 )

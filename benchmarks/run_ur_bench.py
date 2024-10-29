@@ -6,9 +6,12 @@ from .ur5_problem import URProblem, generate_random_ee_target
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner, Status
 from .bench_runner import run_benchmark_configs
 from aligator import TrajOptProblem
+from tap import Tap
 
-SEED = 42
-np.random.seed(SEED)
+
+class Args(Tap):
+    seed: int = 42
+    pool_size: int
 
 
 def _run_random_init(args):
@@ -43,9 +46,10 @@ def check_if_problem_feasible(tol, cls, config, runner_configs: list):
     return False
 
 
-def run_with_vel(vel: bool, bench_name):
+def main(args: Args, vel: bool, bench_name):
     import pickle
 
+    np.random.seed(args.seed)
     rmodel = URProblem.rmodel
     default_start = False
     MAX_ITER = 400
@@ -97,7 +101,10 @@ def run_with_vel(vel: bool, bench_name):
         settings["verbose"] = False
         settings["max_iters"] = MAX_ITER
 
-    TOL = 1e-4
+    if not vel:
+        TOL = 1e-5
+    else:
+        TOL = 1e-4
 
     problems_path = Path(f"{bench_name}_problems.pkl")
     if problems_path.exists():
@@ -114,11 +121,14 @@ def run_with_vel(vel: bool, bench_name):
             tol=TOL,
             instance_configs=instance_configs,
             solver_configs=SOLVERS,
+            pool_size=args.pool_size,
         )
     else:
-        print(f"No problems found at {problems_path.absolute()}, generating some...")
+        num_instances = 80
+        print(
+            f"No problems found at {problems_path.absolute()}, generating {num_instances} instances..."
+        )
         # Generate instances
-        num_instances = 40
         q0_def = pin.neutral(rmodel)
         instance_configs = []
         _jj = 0
@@ -137,5 +147,6 @@ def run_with_vel(vel: bool, bench_name):
             pickle.dump(instance_configs, f)
 
 
-# run_with_vel(False, "ur5_reach")
-run_with_vel(True, "ur5_reach_vel")
+args = Args().parse_args()
+# main(args, False, "ur5_reach")
+main(args, True, "ur5_reach_vel")
