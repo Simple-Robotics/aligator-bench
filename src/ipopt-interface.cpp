@@ -146,7 +146,8 @@ void bounds_equality(int m, double *g_l, double *g_u, void * = NULL) {
   std::fill_n(g_l, m, 0.);
   std::fill_n(g_u, m, 0.);
 }
-void bounds_negative(int m, double *, double *g_u, void *) {
+void bounds_negative(int m, double *g_l, double *g_u, void *) {
+  std::fill_n(g_l, m, -2e19);
   std::fill_n(g_u, m, 0.);
 }
 void bounds_box(int m, double *g_l, double *g_u, void *set_) {
