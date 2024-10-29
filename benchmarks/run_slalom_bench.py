@@ -1,7 +1,7 @@
 import numpy as np
 
 from pathlib import Path
-from .ur_slalom import UrSlalomExample, default_p_ee_term
+from .ur_slalom import UrSlalomExample, default_p_ee_term, default_cyl1_center
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner, Status
 from .bench_runner import run_benchmark_configs
 from aligator import TrajOptProblem
@@ -122,7 +122,10 @@ def main(bench_name):
         while _jj < num_instances:
             p_ee_term = default_p_ee_term.copy()
             p_ee_term += 0.2 * np.random.randn(3)
-            config = {"p_ee_term": p_ee_term}
+            cyl_center_dir = default_cyl1_center / np.linalg.norm(default_cyl1_center)
+            cyl_center_shift = np.random.uniform(-0.05, 0.05)
+            cyl1_center = default_cyl1_center + cyl_center_dir * cyl_center_shift
+            config = {"p_ee_term": p_ee_term, "cyl1_center": cyl1_center}
             if True or check_if_problem_feasible(
                 tol=TOL, cls=UrSlalomExample, config=config, runner_configs=SOLVERS
             ):
