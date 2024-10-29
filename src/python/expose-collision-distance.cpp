@@ -20,5 +20,6 @@ void exposeCollisionAvoidanceModel() {
       ._c(robot_radius_)
       ._c(frame_id)
 #undef _c
-      .def(aligator::python::PolymorphicMultiBaseVisitor<UnaryFunction>());
+      .def(aligator::python::PolymorphicMultiBaseVisitor<StageFunction,
+                                                         UnaryFunction>());
 }
