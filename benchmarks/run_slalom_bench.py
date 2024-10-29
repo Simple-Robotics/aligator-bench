@@ -1,12 +1,12 @@
 import numpy as np
 
 from pathlib import Path
-from .ur_slalom import UrSlalomExample
+from .ur_slalom import UrSlalomExample, default_p_ee_term
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner, Status
 from .bench_runner import run_benchmark_configs
 from aligator import TrajOptProblem
 
-SEED = 42
+SEED = 13
 np.random.seed(SEED)
 
 
@@ -45,22 +45,21 @@ def check_if_problem_feasible(tol, cls, config, runner_configs: list):
 def main(bench_name):
     import pickle
 
-    # rmodel = UrSlalomExample.rmodel
-    default_start = False
+    default_start = True
     MAX_ITER = 400
 
-    _proxddp_ls_etas = [0.2, 0.85]
+    _proxddp_ls_etas = [0.0, 0.85]
 
     SOLVERS = [
         (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
-        (
-            IpoptRunner,
-            {
-                "print_level": 2,
-                "default_start": default_start,
-                "hessian_approximation": "exact",
-            },
-        ),
+        # (
+        #     IpoptRunner,
+        #     {
+        #         "print_level": 2,
+        #         "default_start": default_start,
+        #         "hessian_approximation": "exact",
+        #     },
+        # ),
         (
             IpoptRunner,
             {
@@ -84,9 +83,9 @@ def main(bench_name):
             (
                 ProxDdpRunner,
                 {
-                    "mu_init": 1e-1,
+                    "mu_init": 1e-2,
                     "default_start": default_start,
-                    "rollout_type": "linear",
+                    "rollout_type": "nonlinear",
                     "ls_eta": avg_eta,
                 },
             ),
@@ -121,8 +120,10 @@ def main(bench_name):
         instance_configs = []
         _jj = 0
         while _jj < num_instances:
-            config = {}
-            if check_if_problem_feasible(
+            p_ee_term = default_p_ee_term.copy()
+            p_ee_term += 0.2 * np.random.randn(3)
+            config = {"p_ee_term": p_ee_term}
+            if True or check_if_problem_feasible(
                 tol=TOL, cls=UrSlalomExample, config=config, runner_configs=SOLVERS
             ):
                 instance_configs.append(config)
@@ -133,4 +134,4 @@ def main(bench_name):
             pickle.dump(instance_configs, f)
 
 
-main()
+main("ur_slalom")

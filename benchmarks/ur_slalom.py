@@ -20,9 +20,9 @@ class UrSlalomExample(object):
     coll_model: pin.GeometryModel = robot.collision_model
     vis_model: pin.GeometryModel = robot.visual_model
 
-    def __init__(self, p_ee_term: np.ndarray):
+    def __init__(self, p_ee_term: np.ndarray = default_p_ee_term):
         self.problem, self.xs_init, self.us_init = self._build_problem(
-            p_ee_term=p_ee_term.copy()
+            p_ee_term=np.asarray(p_ee_term)
         )
 
     @staticmethod
@@ -36,8 +36,8 @@ class UrSlalomExample(object):
 
     def _build_problem(self, p_ee_term):
         nv = self.rmodel.nv
-        cyl1_center = np.array([+0.5, -0.2, 0.0])
-        cyl2_center = np.array([-0.5, -0.3, 0.0])
+        cyl1_center = np.array([+0.4, -0.2, 0.0])
+        cyl2_center = np.array([-0.4, -0.3, 0.0])
         cyl1_geom = fcl.Cylinder(0.09, 10.0)
         geom_cyl1 = pin.GeometryObject(
             "osbt1", 0, cyl1_geom, pin.SE3(np.eye(3), cyl1_center)
@@ -107,7 +107,7 @@ class UrSlalomExample(object):
         for i in range(nsteps):
             rcost = aligator.CostStack(space, nu)
             Wx = 1e-3 * np.ones(ndx)
-            Wx[nv:] = 1e-1
+            Wx[nv:] = 1e-2
             rcost.addCost(
                 "xreg",
                 aligator.QuadraticStateCost(
@@ -159,7 +159,7 @@ class UrSlalomExample(object):
 
 if __name__ == "__main__":
     from pinocchio.visualize.meshcat_visualizer import MeshcatVisualizer
-    from .solver_runner import ProxDdpRunner, IpoptRunner
+    from .solver_runner import ProxDdpRunner, IpoptRunner, AltroRunner
 
     args = Args().parse_args()
     example = UrSlalomExample()
@@ -174,28 +174,47 @@ if __name__ == "__main__":
         viz.display(example.q0)
 
     tol = 1e-3
-    mu_init = 1e-3
+    mu_init = 1.0
+    MAX_ITERS = 400
     match args.solver:
         case "ipopt":
             runner = IpoptRunner(
                 {
-                    "warm_start": (xs_i, us_i),
+                    # "warm_start": (xs_i, us_i),
                     "hessian_approximation": "limited-memory",
                     "print_level": 3,
+                    "max_iters": MAX_ITERS,
                 }
             )
-            runner.solve(example, tol)
+            res = runner.solve(example, tol)
+            print(res)
             xs_ = np.stack(runner.solver.xs)
             us_ = np.stack(runner.solver.us)
         case "ali":
             runner = ProxDdpRunner(
-                {"mu_init": mu_init, "warm_start": (xs_i, us_i), "verbose": True}
+                {
+                    "mu_init": mu_init,
+                    # "warm_start": (xs_i, us_i),
+                    "ls_eta": 0.1,
+                    "verbose": True,
+                    "max_iters": MAX_ITERS,
+                }
             )
-            runner.solve(example, tol)
+            res = runner.solve(example, tol)
+            print(res)
             aliresults = runner.solver.results
             print(aliresults)
             xs_ = np.stack(aliresults.xs)
             us_ = np.stack(aliresults.us)
+        case "altro":
+            runner = AltroRunner(
+                {"mu_init": 1.0, "verbose": True, "max_iters": MAX_ITERS}
+            )
+            res = runner.solve(example, tol)
+            altro_solve = runner.solver
+            print(res)
+            xs_ = np.stack(altro_solve.GetAllStates())
+            us_ = np.stack(altro_solve.GetAllInputs())
 
     qs_ = xs_[:, :nq]
 
