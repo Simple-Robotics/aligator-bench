@@ -17,12 +17,11 @@ initAltroFromAligatorProblem(const alcontext::TrajOptProblem &problem) {
   auto constraint_handle = [&solver](int nx, int k,
                                      const alcontext::ConstraintStack &cstrs) {
     // constraints
-    if (cstrs.size() == 1) {
+    for (size_t j = 0; j < cstrs.size(); k++) {
       auto [c, Jc, ct, dim] =
-          aligatorConstraintToAltro(nx, cstrs.funcs[0], cstrs.sets[0]);
-      solver.SetConstraint(c, Jc, dim, ct, "constraint", k, k + 1);
-    } else if (cstrs.size() > 1) {
-      throw std::runtime_error("Multiple constraints not supported.");
+          aligatorConstraintToAltro(nx, cstrs.funcs[j], cstrs.sets[j]);
+      std::string label = fmt::format("cstr_{:d}", j);
+      solver.SetConstraint(c, Jc, dim, ct, label, k, k + 1);
     }
   };
 
