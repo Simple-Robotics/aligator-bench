@@ -4,15 +4,10 @@ import pinocchio as pin
 
 from aligator import manifolds, constraints
 from aligator_bench_pywrap import SphereCylinderCollisionDistance
-from .solver_runner import ProxDdpRunner
-from tap import Tap
+from .common import Args
 
 import example_robot_data as erd
 import hppfcl as fcl
-
-
-class Args(Tap):
-    viz: bool = False
 
 
 class UrSlalomExample(object):
@@ -73,6 +68,7 @@ class UrSlalomExample(object):
         dt = 0.01
         Tf = 3.0
         nsteps = int(Tf / dt)
+        self.times = np.linspace(0.0, Tf, nsteps + 1)
 
         tau0 = pin.rnea(rmodel, self.rdata, self.q0, v0, v0)
         dyn_model = aligator.dynamics.IntegratorSemiImplEuler(ode, dt)
@@ -104,24 +100,6 @@ class UrSlalomExample(object):
 
         stages = []
         for i in range(nsteps):
-            coldist1 = SphereCylinderCollisionDistance(
-                rmodel,
-                ndx,
-                nu,
-                cyl1_center[:2],
-                cyl1_geom.radius,
-                coll_radii,
-                coll_frames,
-            )
-            coldist2 = SphereCylinderCollisionDistance(
-                rmodel,
-                ndx,
-                nu,
-                cyl2_center[:2],
-                cyl2_geom.radius,
-                coll_radii,
-                coll_frames,
-            )
             rcost = aligator.CostStack(space, nu)
             Wx = 1e-3 * np.ones(ndx)
             Wx[nv:] = 1e-1
@@ -134,8 +112,31 @@ class UrSlalomExample(object):
             Wu = 1e-3 * np.eye(nu)
             rcost.addCost("ureg", aligator.QuadraticControlCost(space, tau0, dt * Wu))
             stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
+            ulim = rmodel.effortLimit
+            stage.addConstraint(
+                aligator.ControlErrorResidual(ndx, nu),
+                constraints.BoxConstraint(-ulim, ulim),
+            )
+            coldist1 = SphereCylinderCollisionDistance(
+                rmodel,
+                ndx,
+                nu,
+                cyl1_center[:2],
+                cyl1_geom.radius,
+                coll_radii,
+                coll_frames,
+            )
             stage.addConstraint(coldist1, constraints.NegativeOrthant())
-            stage.addConstraint(coldist2, constraints.NegativeOrthant())
+            # coldist2 = SphereCylinderCollisionDistance(
+            #     rmodel,
+            #     ndx,
+            #     nu,
+            #     cyl2_center[:2],
+            #     cyl2_geom.radius,
+            #     coll_radii,
+            #     coll_frames,
+            # )
+            # stage.addConstraint(coldist2, constraints.NegativeOrthant())
             stages.append(stage)
 
         W_ee_term = 5.0 * np.eye(3)
@@ -153,6 +154,7 @@ class UrSlalomExample(object):
 
 if __name__ == "__main__":
     from pinocchio.visualize.meshcat_visualizer import MeshcatVisualizer
+    from .solver_runner import ProxDdpRunner, IpoptRunner
 
     args = Args().parse_args()
     example = UrSlalomExample()
@@ -168,20 +170,36 @@ if __name__ == "__main__":
 
     tol = 1e-3
     mu_init = 1e-3
-    # solver = aligator.SolverProxDDP(tol, mu_init, max_iters=400)
-    # solver.verbose = aligator.VERBOSE
-    # # solver.rollout_type = aligator.ROLLOUT_LINEAR
-    # solver.setup(problem)
-    # solver.run(problem, xs_init=xs_i, us_init=us_i)
-    runner = ProxDdpRunner(
-        {"mu_init": mu_init, "warm_start": (xs_i, us_i), "verbose": True}
-    )
-    runner.solve(example, tol)
-    aliresults = runner.solver.results
+    match args.solver:
+        case "ipopt":
+            runner = IpoptRunner(
+                {
+                    "warm_start": (xs_i, us_i),
+                    "hessian_approximation": "limited-memory",
+                    "print_level": 3,
+                }
+            )
+            runner.solve(example, tol)
+            xs_ = np.stack(runner.solver.xs)
+            us_ = np.stack(runner.solver.us)
+        case "ali":
+            runner = ProxDdpRunner(
+                {"mu_init": mu_init, "warm_start": (xs_i, us_i), "verbose": True}
+            )
+            runner.solve(example, tol)
+            aliresults = runner.solver.results
+            print(aliresults)
+            xs_ = np.stack(aliresults.xs)
+            us_ = np.stack(aliresults.us)
 
-    print(aliresults)
-    xs_ = np.stack(aliresults.xs)
     qs_ = xs_[:, :nq]
+
+    if args.plot:
+        import matplotlib.pyplot as plt
+        from aligator.utils import plotting
+
+        plotting.plot_controls_traj(times=example.times, us=us_, rmodel=example.rmodel)
+        plt.show()
 
     if args.viz:
         while True:

@@ -8,6 +8,7 @@ class Args(Tap):
     solver: Literal["ali", "ipopt", "altro"]
     record: bool = False
     viz: bool = False
+    plot: bool = False
 
 
 def load_robot_euclidean(loader_cls, verbose=False):
