@@ -5,13 +5,14 @@
 
 namespace pin = pinocchio;
 using namespace aligator::context;
+using aligator_bench::SphereCylinderCollisionDistance;
 
 void exposeCollisionAvoidanceModel() {
 #define _c(name) def_readwrite(#name, &SphereCylinderCollisionDistance::name)
   bp::class_<SphereCylinderCollisionDistance, bp::bases<UnaryFunction>>(
       "SphereCylinderCollisionDistance", bp::no_init)
       .def(
-          bp::init<pin::Model, int, int, Vector2d, double, double,
+          bp::init<pin::Model, int, int, Eigen::Vector2d, double, double,
                    pin::FrameIndex>(("self"_a, "model", "ndx", "nu", "center",
                                      "cyl_radius", "robot_radius", "frame_id")))
       ._c(model_)

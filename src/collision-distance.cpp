@@ -4,6 +4,8 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/kinematics-derivatives.hpp>
 
+namespace aligator_bench {
+
 SphereCylinderCollisionDistance::SphereCylinderCollisionDistance(
     pin::Model model, int ndx, int nu, Vector2d center, double radius,
     double robot_radius, pin::FrameIndex frame_id)
@@ -44,3 +46,5 @@ SphereCylinderCollisionDistance::Data::Data(
     : StageFunctionData(model) {
   frame_jac_.resize(6, model.model_.nv);
 }
+
+} // namespace aligator_bench

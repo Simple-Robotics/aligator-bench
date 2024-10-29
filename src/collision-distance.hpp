@@ -1,12 +1,18 @@
-#include <aligator/context.hpp>
+#pragma once
+
+#include "types.hpp"
+
 #include <aligator/core/unary-function.hpp>
 
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
 
+namespace aligator_bench {
+
 namespace pin = pinocchio;
-using namespace aligator::context;
 using aligator::shared_ptr;
+using aligator::context::StageFunctionData;
+using aligator::context::UnaryFunction;
 using Eigen::Vector2d;
 
 struct SphereCylinderCollisionDistance : UnaryFunction {
@@ -38,3 +44,5 @@ struct SphereCylinderCollisionDistance::Data : StageFunctionData {
   pin::Data pin_data_;
   MatrixXs frame_jac_;
 };
+
+} // namespace aligator_bench
