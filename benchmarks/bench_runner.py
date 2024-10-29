@@ -12,19 +12,19 @@ RESULTS_DIR = Path("results/")
 
 
 def run_single_instance(
-    bench_name, cls, tol, instance_name, example_config, solver_configs
+    subpath: Path, cls, tol, instance_name, example_config, solver_configs
 ):
     import pickle
 
     example = cls(**example_config)
     data_ = []
     suppl_data = {}
-    cls_config_count = defaultdict(int)
+    runner_config_count = defaultdict(int)
     for runner_cls, settings in solver_configs:
         runner = runner_cls(settings)
         run_id = uuid.uuid4().hex
         entry = {"name": runner.name(), "run_id": run_id, "instance": instance_name}
-        config_count = cls_config_count[runner_cls]
+        config_count = runner_config_count[runner_cls]
         config_name = f"{runner.name()}:{config_count}"
         print("Solver config:", config_name, settings)
         print("Problem instance:", instance_name, example_config)
@@ -42,10 +42,7 @@ def run_single_instance(
             "instance": {"name": instance_name, **example_config},
         }
         print("-------")
-        cls_config_count[runner_cls] += 1
-
-    subpath = RESULTS_DIR / bench_name
-    subpath.mkdir(parents=True, exist_ok=True)
+        runner_config_count[runner_cls] += 1
 
     df = pl.DataFrame(data_)
     df = df.with_columns(status=pl.col("status").cast(status_dtype))
@@ -64,10 +61,17 @@ def run_benchmark_configs(
     tol,
     instance_configs: list[dict],
     solver_configs: list[SolverConfig],
+    pool_size: int = 3,
 ):
     from multiprocessing import Pool
+    import shutil
 
-    pool = Pool(3)
+    subpath = RESULTS_DIR / bench_name
+    if subpath.exists():
+        shutil.rmtree(subpath)
+    subpath.mkdir(parents=True)
+
+    pool = Pool(pool_size)
     inputs = []
     for i, example_config in enumerate(instance_configs):
         instance_name = cls.name() + f"_{i}"
@@ -75,7 +79,7 @@ def run_benchmark_configs(
         #     bench_name, cls, tol, instance_name, example_config, solver_configs
         # )
         inputs.append(
-            (bench_name, cls, tol, instance_name, example_config, solver_configs)
+            (subpath, cls, tol, instance_name, example_config, solver_configs)
         )
 
     pool.starmap(run_single_instance, inputs)

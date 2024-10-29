@@ -15,19 +15,18 @@ default_cyl1_center = np.array([+0.5, -0.3, 0.0])
 
 class UrSlalomExample(object):
     robot = erd.load("ur5")
-    q0 = robot.q0
     rmodel: pin.Model = robot.model
     rdata: pin.Data = robot.data
     coll_model: pin.GeometryModel = robot.collision_model
     vis_model: pin.GeometryModel = robot.visual_model
 
-    def __init__(self, p_ee_term=None, cyl1_center=None):
+    def __init__(self, q0=robot.q0, p_ee_term=None, cyl1_center=None):
         if cyl1_center is None:
             cyl1_center = default_cyl1_center.copy()
         if p_ee_term is None:
             p_ee_term = default_p_ee_term.copy()
         self.problem, self.xs_init, self.us_init = self._build_problem(
-            cyl1_center=cyl1_center, p_ee_term=np.asarray(p_ee_term)
+            q0=q0, cyl1_center=cyl1_center, p_ee_term=np.asarray(p_ee_term)
         )
 
     @staticmethod
@@ -39,7 +38,7 @@ class UrSlalomExample(object):
         geom_sph = pin.GeometryObject(name, 0, sph, pin.SE3(np.eye(3), pos))
         self.vis_model.addGeometryObject(geom_sph)
 
-    def _build_problem(self, cyl1_center, p_ee_term):
+    def _build_problem(self, q0, cyl1_center, p_ee_term):
         nv = self.rmodel.nv
         crad = 0.09
         cyl1_geom = fcl.Cylinder(crad, 5.0)
@@ -62,7 +61,7 @@ class UrSlalomExample(object):
         nu = nv
 
         v0 = np.zeros(nv)
-        x0 = np.concatenate((self.q0, v0))
+        x0 = np.concatenate((q0, v0))
 
         self.coll_model.geometryObjects[0].geometry.computeLocalAABB()
         geom_names = (
@@ -74,17 +73,17 @@ class UrSlalomExample(object):
         geom_ids = [self.coll_model.getGeometryId(name) for name in geom_names]
 
         self.add_objective_viz("ee_term", p_ee_term)
-        ee_midway = np.array([0.8, -0.1, 0.4])
+        ee_midway = np.array([0.8, 0.1, 0.4])
         self.add_objective_viz("ee_mid", ee_midway)
 
         ode = aligator.dynamics.MultibodyFreeFwdDynamics(space)
 
         dt = 0.01
-        Tf = 3.0
+        Tf = 2.4
         nsteps = int(Tf / dt)
         self.times = np.linspace(0.0, Tf, nsteps + 1)
 
-        tau0 = pin.rnea(rmodel, self.rdata, self.q0, v0, v0)
+        tau0 = pin.rnea(rmodel, self.rdata, q0, v0, v0)
         dyn_model = aligator.dynamics.IntegratorSemiImplEuler(ode, dt)
 
         us_init = [tau0] * nsteps
@@ -114,7 +113,7 @@ class UrSlalomExample(object):
 
         for i in range(nsteps):
             rcost = aligator.CostStack(space, nu)
-            Wx = 1e-3 * np.ones(ndx)
+            Wx = 1e-2 * np.ones(ndx)
             Wx[nv:] = 1e-1
             rcost.addCost(
                 "xreg",
@@ -122,16 +121,13 @@ class UrSlalomExample(object):
             )
             Wu = 1e-3 * np.eye(nu)
             rcost.addCost("ureg", aligator.QuadraticControlCost(space, nu, dt * Wu))
+            stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
+
             if i == nsteps / 2:
                 frame_res = aligator.FrameTranslationResidual(
                     ndx, nu, rmodel, ee_midway, ee_frame_id
                 )
-                rcost.addCost(
-                    "ee",
-                    aligator.QuadraticResidualCost(space, frame_res, np.eye(3)),
-                    10.0,
-                )
-            stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
+                stage.addConstraint(frame_res, constraints.EqualityConstraintSet())
             coldist1 = SphereCylinderCollisionDistance(
                 rmodel,
                 ndx,
@@ -152,10 +148,10 @@ class UrSlalomExample(object):
             #     coll_frames,
             # )
             # stage.addConstraint(coldist2, constraints.NegativeOrthant())
-            stage.addConstraint(
-                aligator.ControlErrorResidual(ndx, nu),
-                constraints.BoxConstraint(-rmodel.effortLimit, rmodel.effortLimit),
-            )
+            # stage.addConstraint(
+            #     aligator.ControlErrorResidual(ndx, nu),
+            #     constraints.BoxConstraint(-rmodel.effortLimit, rmodel.effortLimit),
+            # )
             stages.append(stage)
 
         frame_res = aligator.FrameTranslationResidual(
@@ -174,7 +170,7 @@ if __name__ == "__main__":
     from .solver_runner import ProxDdpRunner, IpoptRunner, AltroRunner
 
     args = Args().parse_args()
-    example = UrSlalomExample([0.0, -0.4, 0.3])
+    example = UrSlalomExample()
     nq = example.rmodel.nq
     problem = example.problem
     xs_i = example.xs_init
@@ -183,16 +179,15 @@ if __name__ == "__main__":
     if args.viz:
         viz = MeshcatVisualizer(example.rmodel, example.coll_model, example.vis_model)
         viz.initViewer(open=True, loadModel=True)
-        viz.display(example.q0)
+        viz.display(example.robot.q0)
 
     tol = 1e-3
-    mu_init = 1.0
+    mu_init = 10.0
     MAX_ITERS = 200
     match args.solver:
         case "ipopt":
             runner = IpoptRunner(
                 {
-                    # "warm_start": (xs_i, us_i),
                     "hessian_approximation": "limited-memory",
                     "print_level": 3,
                     "max_iters": MAX_ITERS,
@@ -206,8 +201,8 @@ if __name__ == "__main__":
             runner = ProxDdpRunner(
                 {
                     "mu_init": mu_init,
-                    "ls_eta": 0.0,
                     "verbose": True,
+                    "ls_eta": 0.0,
                     "rollout_type": "linear",
                     "max_iters": MAX_ITERS,
                 }

@@ -1,17 +1,25 @@
 import numpy as np
 
 from pathlib import Path
-from .ur_slalom import UrSlalomExample, default_p_ee_term, default_cyl1_center
-from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner, Status
+from .ur_slalom import UrSlalomExample, default_p_ee_term
+from .solver_runner import AltroRunner, ProxDdpRunner, Status
 from .bench_runner import run_benchmark_configs
 from aligator import TrajOptProblem
-
-SEED = 13
-np.random.seed(SEED)
+from tap import Tap
 
 
-def _run_random_init(args):
-    tol, cls, config, (runner_cls, runner_settings) = args
+class Args(Tap):
+    seed: int = 1515
+    pool_size: int = 3
+
+
+args = Args().parse_args()
+
+np.random.seed(args.seed)
+
+
+def _run_random_init(run_args):
+    tol, cls, config, (runner_cls, runner_settings) = run_args
     example: UrSlalomExample = cls(**config)
     rmodel = example.rmodel
     p: TrajOptProblem = example.problem
@@ -42,54 +50,71 @@ def check_if_problem_feasible(tol, cls, config, runner_configs: list):
     return False
 
 
-def main(bench_name):
+def main(args: Args, bench_name):
     import pickle
 
-    default_start = True
-    MAX_ITER = 400
+    print(args)
+
+    default_start = False
+    MAX_ITER = 200
 
     _proxddp_ls_etas = [0.0, 0.85]
 
     SOLVERS = [
         (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
-        # (
-        #     IpoptRunner,
-        #     {
-        #         "print_level": 2,
-        #         "default_start": default_start,
-        #         "hessian_approximation": "exact",
-        #     },
-        # ),
-        (
-            IpoptRunner,
-            {
-                "print_level": 2,
-                "default_start": default_start,
-                "hessian_approximation": "limited-memory",
-            },
-        ),
     ]
     for avg_eta in _proxddp_ls_etas:
-        SOLVERS += [
-            (
-                ProxDdpRunner,
-                {
-                    "mu_init": 1.0,
-                    "default_start": default_start,
-                    "rollout_type": "nonlinear",
-                    "ls_eta": avg_eta,
-                },
-            ),
-            (
-                ProxDdpRunner,
-                {
-                    "mu_init": 1e-2,
-                    "default_start": default_start,
-                    "rollout_type": "nonlinear",
-                    "ls_eta": avg_eta,
-                },
-            ),
-        ]
+        SOLVERS.extend(
+            [
+                (
+                    ProxDdpRunner,
+                    {
+                        "mu_init": 1.0,
+                        "default_start": default_start,
+                        "rollout_type": "nonlinear",
+                        "ls_eta": avg_eta,
+                    },
+                ),
+                (
+                    ProxDdpRunner,
+                    {
+                        "mu_init": 10.0,
+                        "default_start": default_start,
+                        "rollout_type": "nonlinear",
+                        "ls_eta": avg_eta,
+                    },
+                ),
+                (
+                    ProxDdpRunner,
+                    {
+                        "mu_init": 10.0,
+                        "default_start": default_start,
+                        "rollout_type": "linear",
+                        "ls_eta": avg_eta,
+                    },
+                ),
+            ]
+        )
+    # SOLVERS.extend(
+    #     [
+    #         (
+    #             IpoptRunner,
+    #             {
+    #                 "print_level": 2,
+    #                 "default_start": default_start,
+    #                 "hessian_approximation": "exact",
+    #             },
+    #         ),
+    #         (
+    #             IpoptRunner,
+    #             {
+    #                 "print_level": 2,
+    #                 "default_start": default_start,
+    #                 "hessian_approximation": "limited-memory",
+    #             },
+    #         ),
+    #     ]
+    # )
 
     for _, settings in SOLVERS:
         settings["verbose"] = False
@@ -112,29 +137,24 @@ def main(bench_name):
             tol=TOL,
             instance_configs=instance_configs,
             solver_configs=SOLVERS,
+            pool_size=args.pool_size,
         )
     else:
         print(f"No problems found at {problems_path.absolute()}, generating some...")
         # Generate instances
-        num_instances = 40
+        num_instances = 50
         instance_configs = []
-        _jj = 0
-        while _jj < num_instances:
+        for jj in range(num_instances):
             p_ee_term = default_p_ee_term.copy()
-            p_ee_term += 0.2 * np.random.randn(3)
-            cyl_center_dir = default_cyl1_center / np.linalg.norm(default_cyl1_center)
-            cyl_center_shift = np.random.uniform(-0.05, 0.05)
-            cyl1_center = default_cyl1_center + cyl_center_dir * cyl_center_shift
-            config = {"p_ee_term": p_ee_term, "cyl1_center": cyl1_center}
-            if True or check_if_problem_feasible(
-                tol=TOL, cls=UrSlalomExample, config=config, runner_configs=SOLVERS
-            ):
-                instance_configs.append(config)
-                _jj += 1
+            p_ee_term += 0.05 * np.random.randn(3)
+            rmodel = UrSlalomExample.rmodel
+            q0 = UrSlalomExample.robot.q0 + np.random.randn(rmodel.nq)
+            config = {"q0": q0, "p_ee_term": p_ee_term}
+            instance_configs.append(config)
 
         # save checkpoint
         with problems_path.open("wb") as f:
             pickle.dump(instance_configs, f)
 
 
-main("ur_slalom")
+main(args, "ur_slalom")
