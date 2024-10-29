@@ -36,7 +36,7 @@ class UrSlalomExample(object):
 
     def _build_problem(self, p_ee_term):
         nv = self.rmodel.nv
-        crad = 0.06
+        crad = 0.09
         cyl1_center = np.array([+0.5, -0.3, 0.0])
         cyl2_center = np.array([+0.35, -0.3, 0.0])
         cyl1_geom = fcl.Cylinder(crad, 5.0)
@@ -50,7 +50,7 @@ class UrSlalomExample(object):
         )
         geom_cyl2.meshColor[:] = (0.2, 1.0, 1.0, 0.4)
         self.vis_model.addGeometryObject(geom_cyl1)
-        self.vis_model.addGeometryObject(geom_cyl2)
+        # self.vis_model.addGeometryObject(geom_cyl2)
 
         rmodel = self.rmodel
         space = manifolds.MultibodyPhaseSpace(rmodel)
@@ -117,7 +117,7 @@ class UrSlalomExample(object):
                 aligator.QuadraticStateCost(space, nu, x0, dt * np.diag(Wx)),
             )
             Wu = 1e-3 * np.eye(nu)
-            rcost.addCost("ureg", aligator.QuadraticControlCost(space, tau0, dt * Wu))
+            rcost.addCost("ureg", aligator.QuadraticControlCost(space, nu, dt * Wu))
             if i == nsteps / 2:
                 frame_res = aligator.FrameTranslationResidual(
                     ndx, nu, rmodel, ee_midway, ee_frame_id
@@ -128,10 +128,6 @@ class UrSlalomExample(object):
                     10.0,
                 )
             stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
-            stage.addConstraint(
-                aligator.ControlErrorResidual(ndx, nu),
-                constraints.BoxConstraint(-rmodel.effortLimit, rmodel.effortLimit),
-            )
             coldist1 = SphereCylinderCollisionDistance(
                 rmodel,
                 ndx,
@@ -142,16 +138,20 @@ class UrSlalomExample(object):
                 coll_frames,
             )
             stage.addConstraint(coldist1, constraints.NegativeOrthant())
-            coldist2 = SphereCylinderCollisionDistance(
-                rmodel,
-                ndx,
-                nu,
-                cyl2_center[:2],
-                cyl2_geom.radius,
-                coll_radii,
-                coll_frames,
+            # coldist2 = SphereCylinderCollisionDistance(
+            #     rmodel,
+            #     ndx,
+            #     nu,
+            #     cyl2_center[:2],
+            #     cyl2_geom.radius,
+            #     coll_radii,
+            #     coll_frames,
+            # )
+            # stage.addConstraint(coldist2, constraints.NegativeOrthant())
+            stage.addConstraint(
+                aligator.ControlErrorResidual(ndx, nu),
+                constraints.BoxConstraint(-rmodel.effortLimit, rmodel.effortLimit),
             )
-            stage.addConstraint(coldist2, constraints.NegativeOrthant())
             stages.append(stage)
 
         frame_res = aligator.FrameTranslationResidual(
@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     tol = 1e-3
     mu_init = 1.0
-    MAX_ITERS = 400
+    MAX_ITERS = 200
     match args.solver:
         case "ipopt":
             runner = IpoptRunner(
@@ -202,9 +202,9 @@ if __name__ == "__main__":
             runner = ProxDdpRunner(
                 {
                     "mu_init": mu_init,
-                    # "warm_start": (xs_i, us_i),
                     "ls_eta": 0.0,
                     "verbose": True,
+                    "rollout_type": "linear",
                     "max_iters": MAX_ITERS,
                 }
             )
