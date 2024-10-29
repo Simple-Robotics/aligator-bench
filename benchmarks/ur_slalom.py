@@ -82,12 +82,10 @@ class UrSlalomExample(object):
         ee_frame_id = rmodel.getFrameId("tool0")
         coll_frames = []
         coll_radii = []
-        print("Collision geom IDs:")
         for gid in geom_ids:
             gobj: pin.GeometryObject = self.coll_model.geometryObjects[gid]
             fid = gobj.parentFrame
             jid = gobj.parentJoint
-            print("gobj name:", gobj.name, "fid:", rmodel.frames[fid].name)
             coll_frames.append(fid)
 
             gobj.geometry.computeLocalAABB()
