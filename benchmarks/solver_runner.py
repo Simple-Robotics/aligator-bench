@@ -2,7 +2,7 @@ import aligator
 import numpy as np
 import polars
 
-from aligator import SolverProxDDP, TrajOptProblem
+from aligator import TrajOptProblem
 from enum import Enum, auto
 from dataclasses import dataclass
 
@@ -39,6 +39,7 @@ class ProxDdpRunner:
 
     def solve(self, example, tol: float) -> Result:
         import time
+        from aligator import SolverProxDDP
 
         prob: TrajOptProblem = example.problem
         solver = SolverProxDDP(tol)
