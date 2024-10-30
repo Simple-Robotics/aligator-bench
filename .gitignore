@@ -1,5 +1,7 @@
 build/
 .cache/
 results/**/*.csv
+results/*.pdf
+results/*.png
 *.pkl
 *.mp4
