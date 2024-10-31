@@ -56,8 +56,11 @@ def main(args: Args, vel: bool, bench_name):
 
     _proxddp_ls_etas = [0.2, 0.85]
 
+    TOL = 1e-5
+
     SOLVERS = [
         (AltroRunner, {"mu_init": 1.0, "tol_stationarity": 1e-4}),
+        (AltroRunner, {"mu_init": 1.0, "tol_stationarity": TOL}),
         (
             IpoptRunner,
             {
@@ -101,11 +104,6 @@ def main(args: Args, vel: bool, bench_name):
         settings["verbose"] = False
         settings["max_iters"] = MAX_ITER
 
-    if not vel:
-        TOL = 1e-5
-    else:
-        TOL = 1e-4
-
     problems_path = Path(f"{bench_name}_problems.pkl")
     if problems_path.exists():
         print(f"Loading pre-selected problems from {problems_path.absolute()}...")
@@ -136,7 +134,7 @@ def main(args: Args, vel: bool, bench_name):
             ee_target = generate_random_ee_target()
             q0_gen = q0_def + np.random.randn(rmodel.nq)
             config = {"vel_constraint": vel, "ee_target": ee_target, "q0": q0_gen}
-            if not vel or check_if_problem_feasible(
+            if True or check_if_problem_feasible(
                 tol=TOL, cls=URProblem, config=config, runner_configs=SOLVERS
             ):
                 instance_configs.append(config)
