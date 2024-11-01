@@ -191,7 +191,7 @@ if __name__ == "__main__":
     from .common import Args
 
     args = Args().parse_args()
-    example = SoloYoga(dip_angle=50, twist_angle=0)
+    example = SoloYoga(dip_angle=40, twist_angle=10)
     problem = example.problem
     u0 = example.u0
     nq = rmodel.nq
@@ -249,9 +249,9 @@ if __name__ == "__main__":
 
         input("[enter]")
 
-        viz.setCameraPosition([0.5, 0.5, 0.5])
+        viz.setCameraPosition([0.1, 0.6, 0.3])
         ctx = (
-            viz.create_video_ctx("solo12_lift_paw.mp4")
+            viz.create_video_ctx("solo12_lift_paw.mp4", fps=1 / dt)
             if args.record
             else contextlib.nullcontext()
         )

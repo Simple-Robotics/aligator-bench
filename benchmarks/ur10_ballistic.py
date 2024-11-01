@@ -253,7 +253,7 @@ class URBallistic(object):
             stm = aligator.StageModel(rc, dm)
             stm.addConstraint(*get_torque_limit_constraint())
             # stm.addConstraint(get_position_limit_constraint())
-            stm.addConstraint(*get_velocity_limit_constraint())
+            # stm.addConstraint(*get_velocity_limit_constraint())
             return stm
 
         stages = []

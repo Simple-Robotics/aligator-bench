@@ -182,7 +182,7 @@ if __name__ == "__main__":
         viz.display(example.robot.q0)
 
     tol = 1e-3
-    mu_init = 10.0
+    mu_init = 20.0
     MAX_ITERS = 200
     match args.solver:
         case "ipopt":
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 {
                     "mu_init": mu_init,
                     "verbose": True,
-                    "ls_eta": 0.0,
+                    # "ls_eta": 0.0,
                     "rollout_type": "linear",
                     "max_iters": MAX_ITERS,
                 }

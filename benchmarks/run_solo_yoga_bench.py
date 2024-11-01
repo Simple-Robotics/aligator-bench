@@ -1,5 +1,4 @@
 import numpy as np
-import random
 
 from .solo import SoloYoga
 from .solver_runner import ProxDdpRunner, IpoptRunner
@@ -55,7 +54,6 @@ for ls_eta in ls_etas_:
             {"mu_init": 1e-4, "rollout_type": "linear", "ls_eta": ls_eta},
         ),
     ]
-random.shuffle(SOLVERS)
 
 for _, settings in SOLVERS:
     settings["verbose"] = False

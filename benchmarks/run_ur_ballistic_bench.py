@@ -1,8 +1,7 @@
 import numpy as np
-import pinocchio as pin
 
 from pathlib import Path
-from .ur5_problem import URProblem, generate_random_ee_target
+from .ur10_ballistic import URBallistic
 from .solver_runner import AltroRunner, ProxDdpRunner, IpoptRunner, Status
 from .bench_runner import run_benchmark_configs
 from aligator import TrajOptProblem
@@ -10,13 +9,13 @@ from tap import Tap
 
 
 class Args(Tap):
-    seed: int = 42
+    seed: int = 1515
     pool_size: int
 
 
 def _run_random_init(args):
     tol, cls, config, (runner_cls, runner_settings) = args
-    example: URProblem = cls(**config)
+    example = cls(**config)
     rmodel = example.rmodel
     p: TrajOptProblem = example.problem
     nsteps = p.num_steps
@@ -46,15 +45,14 @@ def check_if_problem_feasible(tol, cls, config, runner_configs: list):
     return False
 
 
-def main(args: Args, vel: bool, bench_name):
+def main(args: Args, bench_name):
     import pickle
 
     np.random.seed(args.seed)
-    rmodel = URProblem.rmodel
     default_start = False
     MAX_ITER = 400
 
-    _proxddp_ls_etas = [0.2, 0.85]
+    _proxddp_ls_etas = [0.0, 0.85]
 
     TOL = 1e-5
 
@@ -104,6 +102,8 @@ def main(args: Args, vel: bool, bench_name):
         settings["verbose"] = False
         settings["max_iters"] = MAX_ITER
 
+    default_target_pos = np.array([2.4, 0.0, 0.5])
+
     problems_path = Path(f"{bench_name}_problems.pkl")
     if problems_path.exists():
         print(f"Loading pre-selected problems from {problems_path.absolute()}...")
@@ -115,30 +115,23 @@ def main(args: Args, vel: bool, bench_name):
 
         run_benchmark_configs(
             bench_name=bench_name,
-            cls=URProblem,
+            cls=URBallistic,
             tol=TOL,
             instance_configs=instance_configs,
             solver_configs=SOLVERS,
             pool_size=args.pool_size,
         )
     else:
-        num_instances = 80
+        num_instances = 50
         print(
             f"No problems found at {problems_path.absolute()}, generating {num_instances} instances..."
         )
         # Generate instances
-        q0_def = pin.neutral(rmodel)
         instance_configs = []
-        _jj = 0
-        while _jj < num_instances:
-            ee_target = generate_random_ee_target()
-            q0_gen = q0_def + np.random.randn(rmodel.nq)
-            config = {"vel_constraint": vel, "ee_target": ee_target, "q0": q0_gen}
-            if True or check_if_problem_feasible(
-                tol=TOL, cls=URProblem, config=config, runner_configs=SOLVERS
-            ):
-                instance_configs.append(config)
-                _jj += 1
+        for _jj in range(num_instances):
+            target_pos = default_target_pos + 5 * np.random.randn(3)
+            config = {"target_pos": target_pos}
+            instance_configs.append(config)
 
         # save checkpoint
         with problems_path.open("wb") as f:
@@ -146,5 +139,5 @@ def main(args: Args, vel: bool, bench_name):
 
 
 args = Args().parse_args()
-main(args, False, "ur5_reach")
-# main(args, True, "ur5_reach_vel")
+BENCH_NAME = "ur10_ballistic"
+main(args, BENCH_NAME)
