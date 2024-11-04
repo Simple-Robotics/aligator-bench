@@ -516,7 +516,6 @@ bool TrajOptIpoptNLP::eval_jac_g(Index, const double *traj, bool new_x, Index,
       const int ndx = stage->ndx1();
       const int nu = stage->nu();
       const int ndx2 = stage->ndx2();
-      const int nc = stage->nc();
 
       MatMap djx{ptr, ndx2, ndx};
       ptr += ndx2 * ndx;
