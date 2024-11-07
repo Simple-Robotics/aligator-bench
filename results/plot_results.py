@@ -12,7 +12,13 @@ from tap import Tap
 # plot options
 ALPHA_ = 1.0
 FIGSIZE_ = (7, 4)
+SAVE_FORMATS = (".pdf", ".png", ".svg")
 plt.rcParams["figure.dpi"] = 120
+
+
+def save_fig(fig: plt.Figure, name: str):
+    for ext in SAVE_FORMATS:
+        fig.savefig(f"{name}{ext}")
 
 
 class Args(Tap):
@@ -117,8 +123,7 @@ plt.legend(fontsize=8)
 plt.grid()
 plt.tight_layout()
 
-fig.savefig(f"{BENCH_NAME}_iterations.pdf")
-fig.savefig(f"{BENCH_NAME}_iterations.png")
+save_fig(fig, f"{BENCH_NAME}_iterations")
 
 # %% [markdown]
 # Now we look at final tolerances
@@ -145,10 +150,10 @@ plt.ylabel("Proportion of problems solved")
 plt.xlim((-0.05 * solve_time_q90, solve_time_q90))
 plt.ylim((-0.05, 1.05))
 plt.legend(fontsize=8)
+plt.grid()
 plt.tight_layout()
 
-fig2.savefig(f"{BENCH_NAME}_solve_times.pdf")
-fig2.savefig(f"{BENCH_NAME}_solve_times.png")
+save_fig(fig2, f"{BENCH_NAME}_solve_times")
 
 # %% [markdown]
 # # Average times
@@ -180,7 +185,7 @@ ax.grid(axis="both")
 ax.set_xlabel("Solver (and configuration)")
 ax.set_ylabel("")
 fig.tight_layout()
-fig.savefig(f"{BENCH_NAME}_avg_time_violin.pdf")
+save_fig(fig, f"{BENCH_NAME}_avg_time_violin")
 
 # %% [markdown]
 # # Performance profile
@@ -206,7 +211,7 @@ print("Word perf. ratio:", worst_perf_ratio)
 df_perf_ratios
 
 # %%
-fig = plt.figure(figsize=FIGSIZE_)
+fig4 = plt.figure(figsize=FIGSIZE_)
 
 xvals_ = np.power(10, np.linspace(0.0, np.log10(worst_perf_ratio), 201))
 
@@ -224,8 +229,7 @@ plt.grid()
 plt.grid(which="minor")
 plt.tight_layout()
 
-fig.savefig(f"{BENCH_NAME}_perfprofile_time.pdf")
-fig.savefig(f"{BENCH_NAME}_perfprofile_time.png")
+save_fig(fig4, f"{BENCH_NAME}_perfprofile_time")
 
 # %%
 
