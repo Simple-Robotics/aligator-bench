@@ -13,7 +13,7 @@ from tap import Tap
 ALPHA_ = 1.0
 FIGSIZE_ = (7, 4)
 SAVE_FORMATS = (".pdf", ".png", ".svg")
-plt.rcParams["figure.dpi"] = 120
+plt.rcParams["figure.dpi"] = 200
 
 
 def save_fig(fig: plt.Figure, name: str):
@@ -223,7 +223,7 @@ for cname, perfratios in df_perf_ratios.iter_rows():
 plt.xlabel("Performance ratio $\\tau$")
 plt.ylabel("Proportion of problems solved")
 plt.ylim((-0.05, 1.05))
-plt.xscale("log")
+plt.xscale("log", base=2)
 plt.legend(fontsize=8)
 plt.grid()
 plt.grid(which="minor")

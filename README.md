@@ -10,6 +10,18 @@ We test the following solvers:
 - ALTRO (using a fork included as a submodule)
 - the generic NLP solver [Ipopt](https://coin-or.github.io/Ipopt/)
 
+![solo12_solve_times](results/solo_yoga_solve_times.png)
+
+<p align="center">
+  SOLO-12 solve times
+</p>
+
+![ur10_solve_times](results/ur10_ballistic_solve_times.png)
+
+<p align="center">
+  UR10 solve times
+</p>
+
 ## Building
 
 **Dependencies** Building this repo requires:
