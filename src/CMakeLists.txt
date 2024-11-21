@@ -21,5 +21,4 @@ target_link_libraries(
 )
 
 add_subdirectory(problems)
-add_subdirectory(robots)
 add_subdirectory(python)
