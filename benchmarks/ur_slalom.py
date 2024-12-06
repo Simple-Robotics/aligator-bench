@@ -78,13 +78,13 @@ class UrSlalomExample(object):
 
         ode = aligator.dynamics.MultibodyFreeFwdDynamics(space)
 
-        dt = 0.01
+        self.dt = 0.01
         Tf = 2.4
-        nsteps = int(Tf / dt)
+        nsteps = int(Tf / self.dt)
         self.times = np.linspace(0.0, Tf, nsteps + 1)
 
         tau0 = pin.rnea(rmodel, self.rdata, q0, v0, v0)
-        dyn_model = aligator.dynamics.IntegratorSemiImplEuler(ode, dt)
+        dyn_model = aligator.dynamics.IntegratorSemiImplEuler(ode, self.dt)
 
         us_init = [tau0] * nsteps
         xs_init = aligator.rollout(dyn_model, x0, us_init)
@@ -117,10 +117,12 @@ class UrSlalomExample(object):
             Wx[nv:] = 1e-1
             rcost.addCost(
                 "xreg",
-                aligator.QuadraticStateCost(space, nu, x0, dt * np.diag(Wx)),
+                aligator.QuadraticStateCost(space, nu, x0, self.dt * np.diag(Wx)),
             )
             Wu = 1e-3 * np.eye(nu)
-            rcost.addCost("ureg", aligator.QuadraticControlCost(space, nu, dt * Wu))
+            rcost.addCost(
+                "ureg", aligator.QuadraticControlCost(space, nu, self.dt * Wu)
+            )
             stage = aligator.StageModel(cost=rcost, dynamics=dyn_model)
 
             if i == nsteps / 2:
@@ -175,6 +177,7 @@ if __name__ == "__main__":
     problem = example.problem
     xs_i = example.xs_init
     us_i = example.us_init
+    dt = example.dt
 
     if args.viz:
         viz = MeshcatVisualizer(example.rmodel, example.coll_model, example.vis_model)
@@ -233,6 +236,15 @@ if __name__ == "__main__":
         plt.show()
 
     if args.viz:
-        while True:
-            input("[enter]")
-            viz.play(qs_)
+        import contextlib
+
+        ctx = (
+            viz.create_video_ctx("ur_slalom.mp4", fps=1 / dt)
+            if args.record
+            else contextlib.nullcontext()
+        )
+
+        with ctx:
+            for i in range(3):
+                input("[enter]")
+                viz.play(qs_)

@@ -8,26 +8,23 @@ import numpy as np
 from pathlib import Path
 from tap import Tap
 
-# %%
-# plot options
-ALPHA_ = 1.0
-FIGSIZE_ = (7, 4)
-SAVE_FORMATS = (".pdf", ".png", ".svg")
-plt.rcParams["figure.dpi"] = 200
-
-
-def save_fig(fig: plt.Figure, name: str):
-    for ext in SAVE_FORMATS:
-        fig.savefig(f"{name}{ext}")
-
 
 class Args(Tap):
     bench_name: str
 
 
-# %%
+# plot options
+ALPHA_ = 1.0
+FIGSIZE_ = (7, 4)
+SAVE_FORMATS = (".pdf", ".png", ".svg")
+plt.rcParams["figure.dpi"] = 200
 args = Args().parse_args()
 BENCH_NAME = args.bench_name
+
+
+def save_fig(fig: plt.Figure, name: str):
+    for ext in SAVE_FORMATS:
+        fig.savefig(f"{name}{ext}")
 
 
 def load_files(bench_name):
@@ -46,15 +43,11 @@ def load_files(bench_name):
     return df, suppl_data, len(dfs)
 
 
-def get_solver_config(supp_entry):
-    return supp_entry["solver"]
-
-
+# %%
 df_, suppl_data_, num_instances = load_files(BENCH_NAME)
 df_ = df_.with_columns(avg_iter_time=pl.col("solve_time_s") / pl.col("niter"))
 print(f"Num. instances: {num_instances}")
 
-# %% [markdown]
 # Create aliases for the unique configurations
 
 # %%
@@ -62,43 +55,48 @@ solver_configs_ = [
     {**entry["solver"], "run_id": run_id} for run_id, entry in suppl_data_.items()
 ]
 
-sc_df = pl.DataFrame(solver_configs_)
-sc_df = sc_df.sort("config_name")
-sc_df
+df_sc = pl.DataFrame(solver_configs_)
+df_sc = df_sc.sort("config_name")
+print(df_sc)
 
 # %%
-sc_df.drop("run_id").unique(maintain_order=True)
+df_sc.drop("run_id").unique(maintain_order=True)
 
 # %%
-config_names = sc_df["config_name"].unique().sort()
-config_names
+config_names = df_sc["config_name"].unique().sort()
+print(config_names)
 
-# %%
 palette = sns.color_palette("tab10", len(config_names))
-palette
 
 # %%
-df_fused = df_.join(sc_df, ["run_id", "name"])
+df_fused = df_.join(df_sc, ["run_id", "name"])
 df_fused
 
 # %%
 expr_ok = pl.col("status") == "CONVERGED"
+expr_ok = expr_ok & pl.col("config_name").is_in(
+    [
+        "ALTRO:0",
+        "Ipopt:0",
+        "ProxDDP:1",
+        "ProxDDP:3",
+    ]
+)
 df_ok = df_fused.filter(expr_ok)
 
 g = df_ok.group_by("config_name")
-df_niter = g.agg(pl.col("niter").sort())
-df_niter = df_niter.sort("config_name")
+df_niter = g.agg(pl.col("niter").sort()).sort("config_name")
 df_niter
 
 # %%
 config_names_ok = df_ok["config_name"].unique()
-print(config_names_ok)
+print("Config names OK:", config_names_ok)
 
 subpalette = [
     palette[i] for i in range(len(config_names)) if config_names[i] in config_names_ok
 ]
-subpalette = sns.color_palette(subpalette)
-subpalette
+# subpalette = sns.color_palette(subpalette)
+subpalette = sns.color_palette(palette)
 
 # %%
 sns.set_palette(subpalette)
@@ -108,6 +106,7 @@ max_iters = df_ok["max_iters"].max()
 iterr = np.arange(1, max_iters)
 
 # %%
+plt.style.use("seaborn-v0_8-talk")
 fig = plt.figure(figsize=FIGSIZE_)
 
 for row in df_niter.iter_rows():
@@ -159,16 +158,10 @@ save_fig(fig2, f"{BENCH_NAME}_solve_times")
 # # Average times
 
 # %%
-df_repl_avg = df_fused.filter(
-    (pl.col("status") != "ERROR") & pl.col("config_name").is_in(config_names_ok)
-)
 
-# df_repl_avg = df_fused.filter(pl.col("config_name").is_in(config_names_ok))
-
-# %%
-# ax = sns.violinplot(data=df_repl_avg, x="config_name", y="avg_iter_time", cut=0, fill=True, inner="point", saturation=1.0)
+fig = plt.figure()
 ax = sns.stripplot(
-    data=df_repl_avg,
+    data=df_fused,
     x="config_name",
     y="avg_iter_time",
     linewidth=1,
@@ -178,9 +171,7 @@ ax.xaxis.set_tick_params(rotation=20)
 ax.set_axisbelow(True)
 ax.grid(which="minor", axis="y")
 ax.set_title("Average iteration time (s)")
-fig = ax.get_figure()
-print(fig.get_figwidth(), fig.get_figheight())
-fig.set_figwidth(6.4)
+fig.set_size_inches(FIGSIZE_)
 ax.grid(axis="both")
 ax.set_xlabel("Solver (and configuration)")
 ax.set_ylabel("")
@@ -230,8 +221,3 @@ plt.grid(which="minor")
 plt.tight_layout()
 
 save_fig(fig4, f"{BENCH_NAME}_perfprofile_time")
-
-# %%
-
-
-# %%
